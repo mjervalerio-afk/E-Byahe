@@ -82,7 +82,7 @@ class _ShuttlesScreenState extends State<ShuttlesScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             child: Text(
-              '$label (\${_count(value)})',
+              '$label (${_count(value)})',
               style: TextStyle(
                 color: selected ? Colors.white : AppColors.navy,
                 fontWeight: FontWeight.w700,
@@ -149,7 +149,7 @@ class _ShuttlesScreenState extends State<ShuttlesScreen> {
         children: [
           AppHeader(
             title: 'Shuttles',
-            subtitle: '\${widget.shuttles.length} active',
+            subtitle: '${widget.shuttles.length} active',
             leading: Container(
               width: 44,
               height: 44,
