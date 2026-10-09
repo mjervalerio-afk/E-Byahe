@@ -156,6 +156,11 @@ class ShuttleCard extends StatelessWidget {
                 child: Image.asset(
                   'assets/images/shuttle_van.png',
                   fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.directions_bus_rounded,
+                    color: AppColors.blue,
+                    size: 32,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
