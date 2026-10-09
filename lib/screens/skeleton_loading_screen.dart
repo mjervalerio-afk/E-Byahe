@@ -52,18 +52,20 @@ class _SkeletonLoadingScreenState extends State<SkeletonLoadingScreen> {
   Widget _cardPlaceholder() {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: appCardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF9FCFF), Color(0xFFDCEEFF)],
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white, width: 1.2),
             ),
           ),
           const SizedBox(width: 12),
@@ -87,20 +89,45 @@ class _SkeletonLoadingScreenState extends State<SkeletonLoadingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           // The real header, so it doesn't flicker when the app appears.
           const AppHeader(title: 'E-Byahe Shuttle', subtitle: 'Loading shuttles...'),
           Expanded(
             child: Shimmer.fromColors(
-              baseColor: const Color(0xFFE6E8EC),
-              highlightColor: const Color(0xFFF5F6F8),
+              baseColor: const Color(0xFFD6E7F8),
+              highlightColor: const Color(0xFFFDFEFF),
               child: Column(
                 children: [
-                  Expanded(child: Container(color: const Color(0xFFECEDF0))),
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFE8F4FF),
+                            Color(0xFFD8EBFC),
+                            Color(0xFFF8FCFF),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   Container(
-                    color: Colors.white,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.glassGradient,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                      border: Border.all(color: Colors.white, width: 1.3),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33265F9E),
+                          blurRadius: 20,
+                          offset: Offset(0, -4),
+                        ),
+                      ],
+                    ),
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,7 +146,10 @@ class _SkeletonLoadingScreenState extends State<SkeletonLoadingScreen> {
           ),
           Container(
             height: 64,
-            color: AppColors.metallicBlue,
+            decoration: const BoxDecoration(
+              gradient: AppColors.bottomGradient,
+              border: Border(top: BorderSide(color: Color(0xAA9ADFFF), width: 1.2)),
+            ),
           ),
         ],
       ),
