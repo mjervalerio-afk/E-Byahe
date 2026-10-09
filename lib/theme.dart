@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Shared E-Byahe visual system: luminous metallic blues, clean white surfaces,
-/// soft shadows, and consistent status colors across every screen.
+/// E-Byahe's shared luminous-blue visual language, inspired by the supplied
+/// reference screens: glassy blue gradients, airy white surfaces, and soft blue
+/// borders/shadows. Keep status colors consistent throughout the app.
 class AppColors {
   AppColors._();
 
-  static const metallicBlue = Color(0xFF2467A9);
+  static const metallicBlue = Color(0xFF2671B8);
   static const navy = Color(0xFF123766);
   static const blue = Color(0xFF168BFA);
-  static const sky = Color(0xFF79D4FF);
+  static const sky = Color(0xFF8AD9FF);
   static const green = Color(0xFF12B981);
   static const amber = Color(0xFFFFB52E);
   static const red = Color(0xFFF04458);
   static const muted = Color(0xFF7897BE);
-  static const line = Color(0xFFDCEAF8);
-  static const background = Color(0xFFF3F8FE);
+  static const line = Color(0xFFD7E7F8);
+  static const background = Color(0xFFF1F7FE);
 
   static const softBlue = Color(0xFFE7F3FF);
   static const softGreen = Color(0xFFE4F9F0);
@@ -25,25 +26,42 @@ class AppColors {
   static const headerGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF15508D), Color(0xFF3988D1), Color(0xFF1E5B9B)],
-    stops: [0, 0.52, 1],
+    colors: [
+      Color(0xFF174F8D),
+      Color(0xFF327FC2),
+      Color(0xFF6DBBFA),
+      Color(0xFF1F5B9A),
+    ],
+    stops: [0, 0.36, 0.62, 1],
   );
 
   static const bottomGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF174D88), Color(0xFF3988D1), Color(0xFF1B5A9B)],
+    colors: [
+      Color(0xFF1B518B),
+      Color(0xFF347FC2),
+      Color(0xFF65B9F8),
+      Color(0xFF1B5A99),
+    ],
+    stops: [0, 0.42, 0.66, 1],
+  );
+
+  static const glassGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xF7FFFFFF), Color(0xEAF2FBFF)],
   );
 }
 
-/// Rounded, bright surface with a subtle blue outline and gentle elevation.
+/// Raised frosted-white surface with a thin blue edge and restrained shadows.
 BoxDecoration appCardDecoration({double radius = 20}) {
   return BoxDecoration(
-    color: const Color(0xF7FFFFFF),
+    gradient: AppColors.glassGradient,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: AppColors.line, width: 1.15),
     boxShadow: const [
-      BoxShadow(color: Color(0x15265F9E), blurRadius: 18, offset: Offset(0, 6)),
+      BoxShadow(color: Color(0x18265F9E), blurRadius: 20, offset: Offset(0, 6)),
       BoxShadow(color: Color(0xBFFFFFFF), blurRadius: 1, offset: Offset(0, 1)),
     ],
   );
@@ -77,6 +95,18 @@ ThemeData buildAppTheme() {
       ),
       margin: EdgeInsets.zero,
     ),
+    chipTheme: ChipThemeData(
+      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      selectedColor: AppColors.metallicBlue,
+      disabledColor: AppColors.background,
+      side: const BorderSide(color: AppColors.line),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      labelStyle: const TextStyle(
+        color: AppColors.navy,
+        fontWeight: FontWeight.w600,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+    ),
     dividerColor: AppColors.line,
     textTheme: ThemeData.light().textTheme.apply(
       bodyColor: AppColors.navy,
@@ -91,8 +121,7 @@ ThemeData buildAppTheme() {
   );
 }
 
-/// Shared metallic-blue gradient header used across the app. Safe-area padding
-/// lets the blue finish extend behind the phone status bar.
+/// Common header used across all major screens.
 class AppHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -121,9 +150,15 @@ class AppHeader extends StatelessWidget {
         decoration: const BoxDecoration(
           gradient: AppColors.headerGradient,
           boxShadow: [
-            BoxShadow(color: Color(0x33245F9C), blurRadius: 16, offset: Offset(0, 5)),
+            BoxShadow(
+              color: Color(0x33245F9C),
+              blurRadius: 18,
+              offset: Offset(0, 5),
+            ),
           ],
-          border: Border(bottom: BorderSide(color: Color(0x887DD8FF), width: 1.2)),
+          border: Border(
+            bottom: BorderSide(color: Color(0x997DD8FF), width: 1.2),
+          ),
         ),
         child: SafeArea(
           bottom: false,
