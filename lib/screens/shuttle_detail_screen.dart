@@ -55,7 +55,9 @@ class ShuttleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        child: Column(
         children: [
           AppHeader(
             title: shuttle.name,
@@ -104,6 +106,7 @@ class ShuttleDetailScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
