@@ -161,7 +161,7 @@ class ShuttleCard extends StatelessWidget {
                     BoxShadow(color: Color(0x18265F9E), blurRadius: 9, offset: Offset(0, 3)),
                   ],
                 ),
-                child: Image.asset('assets/images/van_top_down.png', fit: BoxFit.contain),
+                child: Image.asset('assets/images/shuttle_van.png', fit: BoxFit.contain),
               ),
               const SizedBox(width: 12),
               Expanded(
