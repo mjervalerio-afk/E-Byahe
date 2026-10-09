@@ -20,10 +20,7 @@ class ShuttleDetailScreen extends StatelessWidget {
 
   const ShuttleDetailScreen({super.key, required this.shuttle, this.onRefresh});
 
-  List<bool> get _seatStatuses => List.generate(
-        shuttle.seatsTotal,
-        (i) => i < shuttle.seatsAvailable, // true = available
-      );
+  List<bool> get _seatStatuses => List<bool>.filled(shuttle.seatsTotal, true); // Demo mode: all seats available.
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
@@ -55,7 +52,9 @@ class ShuttleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        child: Column(
         children: [
           AppHeader(
             title: shuttle.name,
@@ -104,6 +103,7 @@ class ShuttleDetailScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -111,11 +111,7 @@ class ShuttleDetailScreen extends StatelessWidget {
   Widget _buildRouteCard() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-      ),
+      decoration: appCardDecoration(radius: 16),
       child: Row(
         children: [
           const Icon(Icons.location_on, color: AppColors.blue, size: 22),
@@ -220,11 +216,23 @@ class ShuttleDetailScreen extends StatelessWidget {
             height: 84,
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F4F9),
-              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF9FCFF), Color(0xFFDCEEFF)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white, width: 1.3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x18265F9E),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
             child: Image.asset(
-              'assets/images/shuttle_van.png',
+              'assets/images/van_top_down.png',
               fit: BoxFit.contain,
             ),
           ),
@@ -346,10 +354,7 @@ class ShuttleDetailScreen extends StatelessWidget {
   Widget _buildLiveUpdatesBanner() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.softBlue,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: appCardDecoration(radius: 16),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -411,9 +416,8 @@ class _SeatBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: available
-          ? null
-          : Icon(Icons.close, color: Colors.white, size: size * 0.45),
+      // Seat state is communicated by color only: green = available, red = occupied.
+      child: Icon(Icons.person, color: Colors.white, size: size * 0.58),
     );
   }
 }
@@ -529,8 +533,8 @@ class _RouteStepRow extends StatelessWidget {
 }
 
 /// Positions the seats over the real top-down van image
-/// (assets/images/van_top_down.png). The first 2 seats sit in the front-left
-/// gap next to the cab; the rest fill two even rows to the right.
+/// (assets/images/van_top_down.png). The two front-cabin seats sit near x=24.5%;
+/// seven seats per side fill the upper and lower rows to the right.
 ///
 /// Wrapping this in an AspectRatio(aspectRatio: artworkAspectRatio) keeps the
 /// image's proportions, and the seat fractions below stay aligned with it, on
@@ -541,12 +545,12 @@ class _VanSeatLayout extends StatelessWidget {
   final double height;
   final List<bool> statuses; // all seats, in reading order
 
-  /// Real pixel dimensions of assets/images/van_top_down.png.
-  static const double artworkAspectRatio = 462 / 236;
+  /// Dimensions of the supplied top-down shuttle image (950 × 422).
+  static const double artworkAspectRatio = 950 / 422;
 
-  static const double _cabRightFrac = 0.335;
-  static const double _frontColWidthFrac = 0.09;
-  static const double _frontGapFrac = 0.02;
+  static const double _cabRightFrac = 0.19;
+  static const double _frontColWidthFrac = 0.11;
+  static const double _frontGapFrac = 0.025;
   static const double _mainRowsLeftFrac =
       _cabRightFrac + _frontColWidthFrac + _frontGapFrac;
   static const double _seatsRightFrac = 0.97;
@@ -597,7 +601,7 @@ class _VanSeatLayout extends StatelessWidget {
   }
 
   Widget _frontSeatColumn(double seatSize) {
-    final centerX = width * (_cabRightFrac + _frontColWidthFrac / 2);
+    final centerX = width * 0.245;
     return Stack(
       children: [
         for (int i = 0; i < _frontSeats.length; i++)
