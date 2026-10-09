@@ -565,9 +565,9 @@ class _VanSeatLayout extends StatelessWidget {
   });
 
   List<bool> get _frontSeats =>
-      statuses.length > 2 ? statuses.sublist(0, 2) : statuses;
+      statuses.isNotEmpty ? statuses.sublist(0, 1) : const <bool>[];
   List<bool> get _mainSeats =>
-      statuses.length > 2 ? statuses.sublist(2) : const <bool>[];
+      statuses.length > 1 ? statuses.sublist(1) : const <bool>[];
   List<bool> get _topRow =>
       _mainSeats.sublist(0, (_mainSeats.length / 2).ceil());
   List<bool> get _bottomRow =>
