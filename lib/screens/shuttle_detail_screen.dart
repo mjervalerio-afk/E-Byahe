@@ -533,8 +533,8 @@ class _RouteStepRow extends StatelessWidget {
 }
 
 /// Positions the seats over the real top-down van image
-/// (assets/images/van_top_down.png). The first 2 seats sit in the front-left
-/// gap next to the cab; the rest fill two even rows to the right.
+/// (assets/images/van_top_down.png). The two front-cabin seats sit near x=24.5%;
+/// seven seats per side fill the upper and lower rows to the right.
 ///
 /// Wrapping this in an AspectRatio(aspectRatio: artworkAspectRatio) keeps the
 /// image's proportions, and the seat fractions below stay aligned with it, on
@@ -545,12 +545,12 @@ class _VanSeatLayout extends StatelessWidget {
   final double height;
   final List<bool> statuses; // all seats, in reading order
 
-  /// Real pixel dimensions of assets/images/van_top_down.png.
-  static const double artworkAspectRatio = 462 / 236;
+  /// Dimensions of the supplied top-down shuttle image (950 × 422).
+  static const double artworkAspectRatio = 950 / 422;
 
-  static const double _cabRightFrac = 0.335;
-  static const double _frontColWidthFrac = 0.09;
-  static const double _frontGapFrac = 0.02;
+  static const double _cabRightFrac = 0.19;
+  static const double _frontColWidthFrac = 0.11;
+  static const double _frontGapFrac = 0.025;
   static const double _mainRowsLeftFrac =
       _cabRightFrac + _frontColWidthFrac + _frontGapFrac;
   static const double _seatsRightFrac = 0.97;
@@ -601,7 +601,7 @@ class _VanSeatLayout extends StatelessWidget {
   }
 
   Widget _frontSeatColumn(double seatSize) {
-    final centerX = width * (_cabRightFrac + _frontColWidthFrac / 2);
+    final centerX = width * 0.245;
     return Stack(
       children: [
         for (int i = 0; i < _frontSeats.length; i++)
