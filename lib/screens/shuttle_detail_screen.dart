@@ -20,7 +20,7 @@ class ShuttleDetailScreen extends StatelessWidget {
 
   const ShuttleDetailScreen({super.key, required this.shuttle, this.onRefresh});
 
-  List<bool> get _seatStatuses => List<bool>.filled(shuttle.seatsTotal, true); // Demo mode: all seats available.
+  List<bool> get _seatStatuses => List<bool>.filled(shuttle.seatsTotal.clamp(0, 15), true); // Demo mode: at most 15 passenger seats.
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
@@ -232,8 +232,13 @@ class ShuttleDetailScreen extends StatelessWidget {
               ],
             ),
             child: Image.asset(
-              'assets/images/van_top_down.png',
+              'assets/images/shuttle_van.png',
               fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.directions_bus_rounded,
+                color: AppColors.blue,
+                size: 42,
+              ),
             ),
           ),
         ],
@@ -534,8 +539,8 @@ class _RouteStepRow extends StatelessWidget {
 }
 
 /// Positions the seats over the real top-down van image
-/// (assets/images/van_top_down.png). The two front-cabin seats sit near x=24.5%;
-/// seven seats per side fill the upper and lower rows to the right.
+/// (assets/images/van_top_down.png). One front passenger seat plus 14 main
+/// seats (seven in each row) gives 15 passenger seats total. Driver seat is not counted.
 ///
 /// Wrapping this in an AspectRatio(aspectRatio: artworkAspectRatio) keeps the
 /// image's proportions, and the seat fractions below stay aligned with it, on
@@ -567,7 +572,7 @@ class _VanSeatLayout extends StatelessWidget {
   List<bool> get _frontSeats =>
       statuses.isNotEmpty ? statuses.sublist(0, 1) : const <bool>[];
   List<bool> get _mainSeats =>
-      statuses.length > 1 ? statuses.sublist(1) : const <bool>[];
+      statuses.length > 1 ? statuses.sublist(1, statuses.length.clamp(1, 15)) : const <bool>[];
   List<bool> get _topRow =>
       _mainSeats.sublist(0, (_mainSeats.length / 2).ceil());
   List<bool> get _bottomRow =>
