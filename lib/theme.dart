@@ -6,24 +6,73 @@ import 'package:flutter/services.dart';
 class AppColors {
   AppColors._();
 
-  static const metallicBlue = Color(0xFF3E5E82);
-  static const navy = Color(0xFF0D1B4C);
-  static const blue = Color(0xFF2E6FF2);
-  static const green = Color(0xFF22A45D);
-  static const amber = Color(0xFFE08A00);
-  static const red = Color(0xFFE14B4B);
-  static const muted = Color(0xFF8A93A6);
-  static const line = Color(0xFFE8ECF1);
-  static const background = Color(0xFFF5F7FA);
+  static const metallicBlue = Color(0xFF2671B8);
+  static const navy = Color(0xFF123766);
+  static const blue = Color(0xFF168BFA);
+  static const sky = Color(0xFF8AD9FF);
+  static const green = Color(0xFF12B981);
+  static const amber = Color(0xFFFFB52E);
+  static const red = Color(0xFFF04458);
+  static const muted = Color(0xFF7897BE);
+  static const line = Color(0xFFD7E7F8);
+  static const background = Color(0xFFFAFCFF);
 
-  static const softBlue = Color(0xFFEAF1FF);
-  static const softGreen = Color(0xFFE8F6EE);
-  static const softAmber = Color(0xFFFFF3DD);
-  static const softRed = Color(0xFFFDECEC);
+  /// Gentle white gradient for page content areas.
+  static const backgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFFFFF), Color(0xFFF7FAFE), Color(0xFFEDF5FC)],
+    stops: [0, 0.58, 1],
+  );
+
+  static const softBlue = Color(0xFFE7F3FF);
+  static const softGreen = Color(0xFFE4F9F0);
+  static const softAmber = Color(0xFFFFF4D9);
+  static const softRed = Color(0xFFFFE8EB);
+
+  /// Multi-stop blue gradient used by the top app bars.
+  static const headerGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF174B83),
+      Color(0xFF2C75B9),
+      Color(0xFF70C4FF),
+      Color(0xFF3989CC),
+      Color(0xFF1B548E),
+    ],
+    stops: [0, 0.30, 0.49, 0.70, 1],
+  );
+
+  /// Matching blue chrome for the persistent bottom navigation.
+  static const bottomGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF194F87),
+      Color(0xFF347FC2),
+      Color(0xFF70C4FF),
+      Color(0xFF3B8BCB),
+      Color(0xFF1C568F),
+    ],
+    stops: [0, 0.32, 0.50, 0.72, 1],
+  );
+
+  /// Subtle white-to-ice-blue glass used on cards and floating surfaces.
+  static const glassGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFCFFFFFF),
+      Color(0xF1F4F7FB),
+      Color(0xFCFFFFFF),
+    ],
+    stops: [0, 0.64, 1],
+  );
 }
 
-/// White rounded card with a hairline border and a soft shadow.
-BoxDecoration appCardDecoration({double radius = 16}) {
+/// Raised frosted-white surface with a thin blue edge and soft, restrained glow.
+BoxDecoration appCardDecoration({double radius = 20}) {
   return BoxDecoration(
     gradient: AppColors.glassGradient,
     borderRadius: BorderRadius.circular(radius),

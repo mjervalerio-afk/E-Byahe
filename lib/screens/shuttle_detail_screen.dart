@@ -416,9 +416,8 @@ class _SeatBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: available
-          ? null
-          : Icon(Icons.close, color: Colors.white, size: size * 0.45),
+      // Seat state is communicated by color only: green = available, red = occupied.
+      child: Icon(Icons.person, color: Colors.white, size: size * 0.58),
     );
   }
 }
@@ -565,9 +564,9 @@ class _VanSeatLayout extends StatelessWidget {
   });
 
   List<bool> get _frontSeats =>
-      statuses.length > 2 ? statuses.sublist(0, 2) : statuses;
+      statuses.length > 1 ? statuses.sublist(0, 1) : statuses;
   List<bool> get _mainSeats =>
-      statuses.length > 2 ? statuses.sublist(2) : const <bool>[];
+      statuses.length > 1 ? statuses.sublist(1) : const <bool>[];
   List<bool> get _topRow =>
       _mainSeats.sublist(0, (_mainSeats.length / 2).ceil());
   List<bool> get _bottomRow =>

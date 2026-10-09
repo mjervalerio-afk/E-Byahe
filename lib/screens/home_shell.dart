@@ -7,7 +7,8 @@ import 'live_map_screen.dart';
 import 'shuttle_detail_screen.dart';
 import 'shuttles_screen.dart';
 
-/// Main frame for the three primary E-Byahe sections.
+/// The app's main frame: three real tabs that keep their state when you
+/// switch between them, with the bottom bar always visible.
 class HomeShell extends StatefulWidget {
   final List<Shuttle> shuttles;
 
@@ -20,6 +21,8 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   late List<Shuttle> _shuttles = widget.shuttles;
+
+  /// Tells the map tab which place to fly to (set from the Info tab).
   final ValueNotifier<Landmark?> _focusPlace = ValueNotifier<Landmark?>(null);
 
   @override
@@ -28,6 +31,8 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
+  /// Re-fetches shuttle data. Today fetchShuttles() is a simulated call;
+  /// when you connect Firestore, this is the one place that changes.
   Future<void> _refresh() async {
     final data = await fetchShuttles();
     if (!mounted) return;
@@ -44,6 +49,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _showPlaceOnMap(Landmark place) {
     setState(() => _index = 0);
+    // Reset first so tapping the same place twice still fires.
     _focusPlace.value = null;
     _focusPlace.value = place;
   }
@@ -51,14 +57,13 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
+      // Back from Shuttles/Info returns to the map first; back on the map exits.
       canPop: _index == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) setState(() => _index = 0);
       },
       child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-          child: IndexedStack(
+        body: IndexedStack(
           index: _index,
           children: [
             LiveMapScreen(
@@ -71,9 +76,11 @@ class _HomeShellState extends State<HomeShell> {
               onOpenShuttle: _openShuttle,
               onRefresh: _refresh,
             ),
-            InfoScreen(onShowPlace: _showPlaceOnMap),
+            InfoScreen(
+              onShowPlace: _showPlaceOnMap,
+              onOpenMap: () => setState(() => _index = 0),
+            ),
           ],
-          ),
         ),
         bottomNavigationBar: _buildBottomNav(),
       ),
@@ -83,15 +90,8 @@ class _HomeShellState extends State<HomeShell> {
   Widget _buildBottomNav() {
     return Container(
       decoration: const BoxDecoration(
-        gradient: AppColors.bottomGradient,
-        border: Border(top: BorderSide(color: Color(0xAA9ADFFF), width: 1.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x33245F9C),
-            blurRadius: 20,
-            offset: Offset(0, -5),
-          ),
-        ],
+        color: AppColors.metallicBlue,
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
       child: SafeArea(
         top: false,
@@ -122,81 +122,6 @@ class _HomeShellState extends State<HomeShell> {
               label: 'Info',
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Custom tab surface gives the active section a soft cyan underline like the
-/// reference design, while keeping every tab's touch target evenly spaced.
-class _BottomNavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _BottomNavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final labelColor = selected ? Colors.white : const Color(0xD9E8F5FF);
-
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selected ? activeIcon : icon,
-                  size: 25,
-                  color: labelColor,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: labelColor,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  width: selected ? 44 : 20,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.sky : Colors.transparent,
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: selected
-                        ? const [
-                            BoxShadow(
-                              color: Color(0xAA7FD9FF),
-                              blurRadius: 8,
-                              spreadRadius: 0.5,
-                            ),
-                          ]
-                        : const <BoxShadow>[],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../screens/shuttle_detail_screen.dart';
 
-/// Shuttle data model. Seat totals represent the vehicle's configured capacity.
+/// Placeholder shuttle model. Later, replace static lists of these with a
+/// stream from Firestore, fed by the NEO-6M GPS + load cell hardware.
 class Shuttle {
   final String id;
   final String name;
@@ -11,8 +12,9 @@ class Shuttle {
   final int etaMinutes;
   final String routeLabel;
   final Color avatarColor;
-  final LatLng position;
+  final LatLng position; // real GPS coordinate, once hardware feeds this live
 
+  // Route progress timeline, shown on the Shuttle Detail screen.
   final String originStopName;
   final String departedTime;
   final String currentDestinationName;
@@ -40,12 +42,12 @@ const mockShuttles = <Shuttle>[
   Shuttle(
     id: 'shuttle-01',
     name: 'Shuttle 01',
-    seatsAvailable: 0,
-    seatsTotal: 16,
+    seatsAvailable: 15,
+    seatsTotal: 15,
     etaMinutes: 2,
     routeLabel: 'On route to PCU College Building',
     avatarColor: Color(0xFF7BC67E),
-    position: LatLng(14.292640, 120.962401),
+    position: LatLng(14.292640, 120.962401), // placeholder: sitting at PCU for now
     originStopName: 'PCU Main Entrance',
     departedTime: '9:35 AM',
     currentDestinationName: 'PCU College Building',
@@ -53,8 +55,11 @@ const mockShuttles = <Shuttle>[
   ),
 ];
 
-/// Stand-in for a real data fetch (Firestore, REST, etc). Replace with the
-/// live backend/hardware feed when the GPS and load-cell system is connected.
+/// Stand-in for a real data fetch (Firestore, REST, etc). The delay scales
+/// with how much data there is, so the skeleton screen naturally stays up
+/// longer when there's more to load — same as it would with a real backend.
+/// Swap the body of this function for your real Firestore query later; the
+/// skeleton screen doesn't need to change at all when you do.
 Future<List<Shuttle>> fetchShuttles() async {
   final simulatedNetworkDelay = Duration(milliseconds: 250 * mockShuttles.length);
   await Future.delayed(simulatedNetworkDelay);
@@ -90,21 +95,16 @@ class ShuttleTile extends StatelessWidget {
         color: selected ? const Color(0xFFEAF1FF) : Colors.transparent,
         child: Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F4FF),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFD7E7F8)),
-              ),
-              child: Image.asset(
-                'assets/images/shuttle_van.png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.directions_bus_rounded,
-                  color: Color(0xFF2671B8),
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: shuttle.avatarColor,
+              child: ClipOval(
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Image.asset(
+                    'assets/images/shuttle_van.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),
