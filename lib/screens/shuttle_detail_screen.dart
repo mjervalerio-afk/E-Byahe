@@ -111,11 +111,7 @@ class ShuttleDetailScreen extends StatelessWidget {
   Widget _buildRouteCard() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-      ),
+      decoration: appCardDecoration(radius: 16),
       child: Row(
         children: [
           const Icon(Icons.location_on, color: AppColors.blue, size: 22),
@@ -220,8 +216,20 @@ class ShuttleDetailScreen extends StatelessWidget {
             height: 84,
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F4F9),
-              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF9FCFF), Color(0xFFDCEEFF)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white, width: 1.3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x18265F9E),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
             child: Image.asset(
               'assets/images/shuttle_van.png',
@@ -346,10 +354,7 @@ class ShuttleDetailScreen extends StatelessWidget {
   Widget _buildLiveUpdatesBanner() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.softBlue,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: appCardDecoration(radius: 16),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -411,9 +416,8 @@ class _SeatBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: available
-          ? null
-          : Icon(Icons.close, color: Colors.white, size: size * 0.45),
+      // Seat state is communicated by color only: green = available, red = occupied.
+      child: null,
     );
   }
 }
