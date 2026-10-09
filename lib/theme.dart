@@ -15,7 +15,15 @@ class AppColors {
   static const red = Color(0xFFF04458);
   static const muted = Color(0xFF7897BE);
   static const line = Color(0xFFD7E7F8);
-  static const background = Color(0xFFF3F6FA);
+  static const background = Color(0xFFFAFCFF);
+
+  /// Gentle white gradient for page content areas.
+  static const backgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFFFFF), Color(0xFFF7FAFE), Color(0xFFEDF5FC)],
+    stops: [0, 0.58, 1],
+  );
 
   static const softBlue = Color(0xFFE7F3FF);
   static const softGreen = Color(0xFFE4F9F0);
