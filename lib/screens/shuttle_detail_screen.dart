@@ -569,10 +569,11 @@ class _VanSeatLayout extends StatelessWidget {
     required this.statuses,
   });
 
-  List<bool> get _frontSeats =>
-      statuses.isNotEmpty ? statuses.sublist(0, 1) : const <bool>[];
+  // The driver/cab area is not a passenger seat. Keep all seat occupancy
+  // markers in the two passenger rows while the capacity remains capped at 15.
+  List<bool> get _frontSeats => const <bool>[];
   List<bool> get _mainSeats =>
-      statuses.length > 1 ? statuses.sublist(1, statuses.length.clamp(1, 15)) : const <bool>[];
+      statuses.take(15).toList(growable: false);
   List<bool> get _topRow =>
       _mainSeats.sublist(0, (_mainSeats.length / 2).ceil());
   List<bool> get _bottomRow =>
