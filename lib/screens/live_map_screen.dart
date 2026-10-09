@@ -5,13 +5,10 @@ import '../widgets/landmarks.dart';
 import '../widgets/shuttle_card.dart';
 import '../widgets/shuttle_tile.dart';
 
-/// The Live Map tab: the free OpenStreetMap map with four simple pins, and a
-/// pull-up sheet listing the shuttles.
+/// Live map with a draggable frosted-glass shuttle panel.
 class LiveMapScreen extends StatefulWidget {
   final List<Shuttle> shuttles;
   final ValueChanged<Shuttle> onOpenShuttle;
-
-  /// When this changes to a place, the map flies to it (used by the Info tab).
   final ValueNotifier<Landmark?>? focusPlace;
 
   const LiveMapScreen({
@@ -50,13 +47,10 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
 
   void _onFocusPlace() {
     final place = widget.focusPlace?.value;
-    if (place == null) return;
-    _mapController.move(place.position, 16.5);
+    if (place != null) _mapController.move(place.position, 16.5);
   }
 
-  void _recenterMap() {
-    _mapController.move(liveMapInitialCenter, liveMapInitialZoom);
-  }
+  void _recenterMap() => _mapController.move(liveMapInitialCenter, liveMapInitialZoom);
 
   String _shortLabel(String name) {
     switch (name) {
@@ -90,23 +84,19 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
         ),
         Expanded(
           child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
-                children: [
-                  Positioned.fill(child: _buildMap()),
-                  _buildAttribution(),
-                  _buildRecenterButton(constraints.maxHeight),
-                  _buildShuttleSheet(),
-                ],
-              );
-            },
+            builder: (context, constraints) => Stack(
+              children: [
+                Positioned.fill(child: _buildMap()),
+                _buildAttribution(),
+                _buildRecenterButton(constraints.maxHeight),
+                _buildShuttleSheet(),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
-
-  // ------------------------------------------------------------------- map
 
   Widget _buildMap() {
     return FlutterMap(
@@ -117,14 +107,12 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
         minZoom: 11,
         maxZoom: 18,
         backgroundColor: Color(0xFFF2F4F7),
-        // No two-finger rotation: it only makes the map harder to read.
         interactionOptions: InteractionOptions(
           flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
         ),
       ),
       children: [
         TileLayer(
-          // The free OpenStreetMap map. No API key, no account.
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           maxZoom: 19,
           userAgentPackageName: 'com.pcu.e_byahe_shuttle',
@@ -136,8 +124,6 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
                 point: landmark.position,
                 width: 130,
                 height: 92,
-                // Whole marker sits above the point, so the pin's tip
-                // lands exactly on the coordinate.
                 alignment: Alignment.topCenter,
                 child: GestureDetector(
                   onTap: () => _mapController.move(landmark.position, 16.5),
@@ -153,16 +139,16 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
     );
   }
 
-  /// Map credit required by OpenStreetMap. Top-left so the sheet never hides it.
   Widget _buildAttribution() {
     return Positioned(
       top: 8,
       left: 8,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.75),
-          borderRadius: BorderRadius.circular(6),
+          color: Colors.white.withValues(alpha: 0.82),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: AppColors.line),
         ),
         child: const Text(
           '© OpenStreetMap contributors',
@@ -172,15 +158,14 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
     );
   }
 
-  /// Re-fits the map on the four places. It rides just above the sheet as the
-  /// sheet is dragged, and hides when the sheet is nearly full-screen.
   Widget _buildRecenterButton(double availableHeight) {
     return Positioned.fill(
       child: ListenableBuilder(
         listenable: _sheetController,
         builder: (context, _) {
-          final sheetSize =
-              _sheetController.isAttached ? _sheetController.size : _sheetInitialExtent;
+          final sheetSize = _sheetController.isAttached
+              ? _sheetController.size
+              : _sheetInitialExtent;
           if (sheetSize > 0.6) return const SizedBox.shrink();
 
           return Align(
@@ -190,17 +175,19 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
                 right: 16,
                 bottom: availableHeight * sheetSize + 12,
               ),
-              child: GestureDetector(
-                onTap: _recenterMap,
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 7,
+                shadowColor: AppColors.navy.withValues(alpha: 0.18),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _recenterMap,
+                  child: const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Icon(Icons.my_location, color: AppColors.navy, size: 22),
                   ),
-                  child: const Icon(Icons.my_location, color: AppColors.navy, size: 22),
                 ),
               ),
             ),
@@ -209,8 +196,6 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
       ),
     );
   }
-
-  // ----------------------------------------------------------------- sheet
 
   Widget _buildShuttleSheet() {
     return DraggableScrollableSheet(
@@ -222,10 +207,14 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
       snapSizes: const [_sheetMinExtent, _sheetInitialExtent, _sheetMaxExtent],
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 14)],
+          decoration: BoxDecoration(
+            gradient: AppColors.glassGradient,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.94), width: 1.4),
+            boxShadow: const [
+              BoxShadow(color: Color(0x33265F9E), blurRadius: 22, offset: Offset(0, -5)),
+              BoxShadow(color: Color(0x55FFFFFF), blurRadius: 1, offset: Offset(0, 1)),
+            ],
           ),
           child: ListView(
             controller: scrollController,
@@ -233,11 +222,11 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40,
+                  width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD5D9DF),
-                    borderRadius: BorderRadius.circular(2),
+                    color: const Color(0xFFC5D9ED),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
@@ -249,7 +238,8 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
                     'Shuttles',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 18,
+                      fontSize: 19,
+                      letterSpacing: -0.3,
                       color: AppColors.navy,
                     ),
                   ),
@@ -277,8 +267,6 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
   }
 }
 
-/// A map pin: short label on top, a colored circle with the place's icon,
-/// and a small pointer whose tip is the exact coordinate.
 class _LandmarkPin extends StatelessWidget {
   final Landmark landmark;
   final String label;
@@ -291,11 +279,14 @@ class _LandmarkPin extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+            gradient: AppColors.glassGradient,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white, width: 1.2),
+            boxShadow: const [
+              BoxShadow(color: Color(0x26265F9E), blurRadius: 7, offset: Offset(0, 2)),
+            ],
           ),
           child: Text(
             label,
@@ -304,19 +295,21 @@ class _LandmarkPin extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: AppColors.navy,
             ),
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Container(
-          width: 36,
-          height: 36,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: landmark.color,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2.5),
-            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 5)],
+            boxShadow: const [
+              BoxShadow(color: Color(0x55265F9E), blurRadius: 8, offset: Offset(0, 3)),
+            ],
           ),
           child: Icon(landmark.icon, color: Colors.white, size: 18),
         ),

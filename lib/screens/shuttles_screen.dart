@@ -5,7 +5,7 @@ import '../widgets/shuttle_tile.dart';
 
 enum _ShuttleFilter { all, open, full }
 
-/// The Shuttles tab: every shuttle in one list, with filters and refresh.
+/// Fleet list with quick seat-status filters.
 class ShuttlesScreen extends StatefulWidget {
   final List<Shuttle> shuttles;
   final ValueChanged<Shuttle> onOpenShuttle;
@@ -54,18 +54,43 @@ class _ShuttlesScreenState extends State<ShuttlesScreen> {
 
   Widget _chip(String label, _ShuttleFilter value) {
     final selected = _filter == value;
-    return ChoiceChip(
-      label: Text('$label (${_count(value)})'),
-      selected: selected,
-      showCheckmark: false,
-      onSelected: (_) => setState(() => _filter = value),
-      selectedColor: AppColors.metallicBlue,
-      backgroundColor: Colors.white,
-      side: BorderSide(color: selected ? AppColors.metallicBlue : AppColors.line),
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : AppColors.navy,
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
+    final radius = BorderRadius.circular(15);
+
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: selected ? AppColors.headerGradient : AppColors.glassGradient,
+          borderRadius: radius,
+          border: Border.all(
+            color: selected ? const Color(0xFF85CFFF) : AppColors.line,
+            width: selected ? 1.3 : 1,
+          ),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x332A78BC),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : const <BoxShadow>[],
+        ),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: () => setState(() => _filter = value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+            child: Text(
+              '$label (${_count(value)})',
+              style: TextStyle(
+                color: selected ? Colors.white : AppColors.navy,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -75,7 +100,7 @@ class _ShuttlesScreenState extends State<ShuttlesScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 60, 16, 24),
       children: [
-        const Icon(Icons.directions_bus_outlined, size: 56, color: Color(0xFFCBD2DB)),
+        const Icon(Icons.directions_bus_outlined, size: 56, color: Color(0xFFB9CCE2)),
         const SizedBox(height: 12),
         const Text(
           'No shuttles match this filter',
@@ -105,57 +130,106 @@ class _ShuttlesScreenState extends State<ShuttlesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final visible =
-        widget.shuttles.where((s) => _matches(s, _filter)).toList();
+    final visible = widget.shuttles.where((s) => _matches(s, _filter)).toList();
 
-    return Column(
-      children: [
-        AppHeader(
-          title: 'Shuttles',
-          subtitle: '${widget.shuttles.length} active',
-          leading: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Icon(Icons.directions_bus, color: Colors.white, size: 28),
-          ),
-          trailing: IconButton(
-            tooltip: 'Refresh',
-            onPressed: _handleRefresh,
-            icon: const Icon(Icons.refresh, color: Colors.white),
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFF8FBFF),
+            AppColors.background,
+            Color(0xFFEDF6FF),
+          ],
+          stops: [0, 0.62, 1],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _chip('All', _ShuttleFilter.all),
-                _chip('Seats open', _ShuttleFilter.open),
-                _chip('Full', _ShuttleFilter.full),
-              ],
+      ),
+      child: Column(
+        children: [
+          AppHeader(
+            title: 'Shuttles',
+            subtitle: '${widget.shuttles.length} active',
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0x667FD1FF), Color(0x22FFFFFF)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33204470),
+                    blurRadius: 9,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.directions_bus_rounded,
+                color: Colors.white,
+                size: 27,
+              ),
+            ),
+            trailing: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22204470),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                tooltip: 'Refresh',
+                onPressed: _handleRefresh,
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 24),
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _handleRefresh,
-            child: visible.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                    itemCount: visible.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) => ShuttleCard(
-                      shuttle: visible[i],
-                      onTap: () => widget.onOpenShuttle(visible[i]),
-                    ),
-                  ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip('All', _ShuttleFilter.all),
+                  _chip('Seats open', _ShuttleFilter.open),
+                  _chip('Full', _ShuttleFilter.full),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.blue,
+              onRefresh: _handleRefresh,
+              child: visible.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: visible.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) => ShuttleCard(
+                        shuttle: visible[i],
+                        onTap: () => widget.onOpenShuttle(visible[i]),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

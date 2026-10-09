@@ -95,33 +95,33 @@ class _HomeShellState extends State<HomeShell> {
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 9, 8, 5),
-          child: Row(
-            children: [
-              _BottomNavItem(
-                icon: Icons.map_outlined,
-                activeIcon: Icons.map_rounded,
-                label: 'Live Map',
-                selected: _index == 0,
-                onTap: () => setState(() => _index = 0),
-              ),
-              _BottomNavItem(
-                icon: Icons.directions_bus_outlined,
-                activeIcon: Icons.directions_bus_rounded,
-                label: 'Shuttles',
-                selected: _index == 1,
-                onTap: () => setState(() => _index = 1),
-              ),
-              _BottomNavItem(
-                icon: Icons.info_outline_rounded,
-                activeIcon: Icons.info_rounded,
-                label: 'Info',
-                selected: _index == 2,
-                onTap: () => setState(() => _index = 2),
-              ),
-            ],
-          ),
+        child: BottomNavigationBar(
+          currentIndex: _index,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
+          onTap: (i) => setState(() => _index = i),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.map_outlined),
+              activeIcon: Icon(Icons.map),
+              label: 'Live Map',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.directions_bus_outlined),
+              activeIcon: Icon(Icons.directions_bus),
+              label: 'Shuttles',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.info_outline),
+              activeIcon: Icon(Icons.info),
+              label: 'Info',
+            ),
+          ],
         ),
       ),
     );

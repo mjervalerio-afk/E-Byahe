@@ -150,18 +150,13 @@ class ShuttleCard extends StatelessWidget {
                 height: 62,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFF9FCFF), Color(0xFFDCEEFF)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white, width: 1.3),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x18265F9E), blurRadius: 9, offset: Offset(0, 3)),
-                  ],
+                  color: const Color(0xFFF0F4F9),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Image.asset('assets/images/van_top_down.png', fit: BoxFit.contain),
+                child: Image.asset(
+                  'assets/images/shuttle_van.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -416,8 +416,9 @@ class _SeatBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      // Seat state is communicated by color only: green = available, red = occupied.
-      child: Icon(Icons.person, color: Colors.white, size: size * 0.58),
+      child: available
+          ? null
+          : Icon(Icons.close, color: Colors.white, size: size * 0.45),
     );
   }
 }
