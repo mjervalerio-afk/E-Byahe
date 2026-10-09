@@ -40,8 +40,8 @@ const mockShuttles = <Shuttle>[
   Shuttle(
     id: 'shuttle-01',
     name: 'Shuttle 01',
-    seatsAvailable: 0,
-    seatsTotal: 16,
+    seatsAvailable: 15,
+    seatsTotal: 15,
     etaMinutes: 2,
     routeLabel: 'On route to PCU College Building',
     avatarColor: Color(0xFF7BC67E),
