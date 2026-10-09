@@ -56,7 +56,9 @@ class _HomeShellState extends State<HomeShell> {
         if (!didPop) setState(() => _index = 0);
       },
       child: Scaffold(
-        body: IndexedStack(
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+          child: IndexedStack(
           index: _index,
           children: [
             LiveMapScreen(
@@ -71,6 +73,7 @@ class _HomeShellState extends State<HomeShell> {
             ),
             InfoScreen(onShowPlace: _showPlaceOnMap),
           ],
+          ),
         ),
         bottomNavigationBar: _buildBottomNav(),
       ),
