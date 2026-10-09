@@ -15,7 +15,7 @@ class AppColors {
   static const red = Color(0xFFF04458);
   static const muted = Color(0xFF7897BE);
   static const line = Color(0xFFD7E7F8);
-  static const background = Color(0xFFF5FAFF);
+  static const background = Color(0xFFF3F6FA);
 
   static const softBlue = Color(0xFFE7F3FF);
   static const softGreen = Color(0xFFE4F9F0);
@@ -56,7 +56,7 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [
       Color(0xFCFFFFFF),
-      Color(0xF1F5FBFF),
+      Color(0xF1F4F7FB),
       Color(0xFCFFFFFF),
     ],
     stops: [0, 0.64, 1],
