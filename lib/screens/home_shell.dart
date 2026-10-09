@@ -87,8 +87,11 @@ class _HomeShellState extends State<HomeShell> {
   Widget _buildBottomNav() {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.metallicBlue,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+        gradient: AppColors.bottomGradient,
+        border: Border(top: BorderSide(color: Color(0x887DD8FF), width: 1.2)),
+        boxShadow: [
+          BoxShadow(color: Color(0x33245F9C), blurRadius: 16, offset: Offset(0, -3)),
+        ],
       ),
       child: SafeArea(
         top: false,
