@@ -20,10 +20,7 @@ class ShuttleDetailScreen extends StatelessWidget {
 
   const ShuttleDetailScreen({super.key, required this.shuttle, this.onRefresh});
 
-  List<bool> get _seatStatuses => List.generate(
-        shuttle.seatsTotal,
-        (i) => i < shuttle.seatsAvailable, // true = available
-      );
+  List<bool> get _seatStatuses => List<bool>.filled(shuttle.seatsTotal, true); // Demo mode: all seats available.
 
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
@@ -235,7 +232,7 @@ class ShuttleDetailScreen extends StatelessWidget {
               ],
             ),
             child: Image.asset(
-              'assets/images/shuttle_van.png',
+              'assets/images/van_top_down.png',
               fit: BoxFit.contain,
             ),
           ),
@@ -420,7 +417,7 @@ class _SeatBox extends StatelessWidget {
         border: Border.all(color: Colors.white, width: 2),
       ),
       // Seat state is communicated by color only: green = available, red = occupied.
-      child: null,
+      child: Icon(Icons.person, color: Colors.white, size: size * 0.58),
     );
   }
 }
