@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// E-Byahe's shared luminous-blue visual language, inspired by the supplied
-/// reference screens: glassy blue gradients, airy white surfaces, and soft blue
-/// borders/shadows. Keep status colors consistent throughout the app.
+/// Shared E-Byahe visual system: luminous blue chrome, soft ice-blue
+/// backgrounds, frosted white cards, and clear seat-status colors.
 class AppColors {
   AppColors._();
 
@@ -16,53 +15,71 @@ class AppColors {
   static const red = Color(0xFFF04458);
   static const muted = Color(0xFF7897BE);
   static const line = Color(0xFFD7E7F8);
-  static const background = Color(0xFFF1F7FE);
+  static const background = Color(0xFFF5FAFF);
 
   static const softBlue = Color(0xFFE7F3FF);
   static const softGreen = Color(0xFFE4F9F0);
   static const softAmber = Color(0xFFFFF4D9);
   static const softRed = Color(0xFFFFE8EB);
 
+  /// Multi-stop blue gradient used by the top app bars.
   static const headerGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF174F8D),
-      Color(0xFF327FC2),
-      Color(0xFF6DBBFA),
-      Color(0xFF1F5B9A),
+      Color(0xFF174B83),
+      Color(0xFF2C75B9),
+      Color(0xFF70C4FF),
+      Color(0xFF3989CC),
+      Color(0xFF1B548E),
     ],
-    stops: [0, 0.36, 0.62, 1],
+    stops: [0, 0.30, 0.49, 0.70, 1],
   );
 
+  /// Matching blue chrome for the persistent bottom navigation.
   static const bottomGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF1B518B),
+      Color(0xFF194F87),
       Color(0xFF347FC2),
-      Color(0xFF65B9F8),
-      Color(0xFF1B5A99),
+      Color(0xFF70C4FF),
+      Color(0xFF3B8BCB),
+      Color(0xFF1C568F),
     ],
-    stops: [0, 0.42, 0.66, 1],
+    stops: [0, 0.32, 0.50, 0.72, 1],
   );
 
+  /// Subtle white-to-ice-blue glass used on cards and floating surfaces.
   static const glassGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xF7FFFFFF), Color(0xEAF2FBFF)],
+    colors: [
+      Color(0xFCFFFFFF),
+      Color(0xF1F5FBFF),
+      Color(0xFCFFFFFF),
+    ],
+    stops: [0, 0.64, 1],
   );
 }
 
-/// Raised frosted-white surface with a thin blue edge and restrained shadows.
+/// Raised frosted-white surface with a thin blue edge and soft, restrained glow.
 BoxDecoration appCardDecoration({double radius = 20}) {
   return BoxDecoration(
     gradient: AppColors.glassGradient,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: AppColors.line, width: 1.15),
     boxShadow: const [
-      BoxShadow(color: Color(0x18265F9E), blurRadius: 20, offset: Offset(0, 6)),
-      BoxShadow(color: Color(0xBFFFFFFF), blurRadius: 1, offset: Offset(0, 1)),
+      BoxShadow(
+        color: Color(0x1C265F9E),
+        blurRadius: 22,
+        offset: Offset(0, 6),
+      ),
+      BoxShadow(
+        color: Color(0xBFFFFFFF),
+        blurRadius: 1,
+        offset: Offset(0, 1),
+      ),
     ],
   );
 }
@@ -76,6 +93,7 @@ ThemeData buildAppTheme() {
     surface: Colors.white,
     error: AppColors.red,
   );
+
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
@@ -96,7 +114,7 @@ ThemeData buildAppTheme() {
       margin: EdgeInsets.zero,
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      backgroundColor: Colors.white.withValues(alpha: 0.96),
       selectedColor: AppColors.metallicBlue,
       disabledColor: AppColors.background,
       side: const BorderSide(color: AppColors.line),
@@ -121,7 +139,7 @@ ThemeData buildAppTheme() {
   );
 }
 
-/// Common header used across all major screens.
+/// Reusable luminous header shared by the map, shuttle list, detail, and info.
 class AppHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -152,69 +170,114 @@ class AppHeader extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: Color(0x33245F9C),
-              blurRadius: 18,
+              blurRadius: 20,
               offset: Offset(0, 5),
             ),
           ],
           border: Border(
-            bottom: BorderSide(color: Color(0x997DD8FF), width: 1.2),
+            bottom: BorderSide(color: Color(0xAA9ADFFF), width: 1.3),
           ),
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    if (leading != null) ...[
-                      leading!,
-                      const SizedBox(width: 10),
-                    ] else
-                      const SizedBox(width: 2),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 19,
-                              letterSpacing: -0.25,
-                            ),
-                          ),
-                          if (subtitle != null) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              subtitle!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFE3F2FF),
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.18, -1.15),
+                      radius: 1.25,
+                      colors: [
+                        const Color(0x777ED5FF),
+                        const Color(0x18C7ECFF),
+                        Colors.transparent,
+                      ],
+                      stops: const [0, 0.46, 1],
                     ),
-                    if (trailing != null) trailing!,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: -58,
+              bottom: -76,
+              child: IgnorePointer(
+                child: Container(
+                  width: 220,
+                  height: 150,
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [Color(0x4476CFFF), Colors.transparent],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        if (leading != null) ...[
+                          leading!,
+                          const SizedBox(width: 10),
+                        ] else
+                          const SizedBox(width: 2),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 20,
+                                  letterSpacing: -0.3,
+                                  shadows: [
+                                    Shadow(
+                                      color: Color(0x33204470),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 3,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (subtitle != null) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  subtitle!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFE5F3FF),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (trailing != null) trailing!,
+                      ],
+                    ),
+                    if (bottom != null) ...[
+                      const SizedBox(height: 14),
+                      bottom!,
+                    ],
                   ],
                 ),
-                if (bottom != null) ...[
-                  const SizedBox(height: 14),
-                  bottom!,
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
