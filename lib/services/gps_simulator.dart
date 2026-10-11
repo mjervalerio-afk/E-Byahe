@@ -199,31 +199,40 @@ class GpsSimulator extends ChangeNotifier {
     final checkpointManager = RouteStateManager();
     checkpointManager.initialize(scenarioId: 'A', startingStopId: 'pcu');
     if (testCase != 'college not next') {
-      // Route A visits PCU again immediately before the College Building stop.
+      // Route A revisits PCU immediately before the College Building stop.
       for (var i = 0; i < 3; i++) {
         checkpointManager.advanceCheckpoint();
       }
     }
 
     final now = DateTime.now().toUtc();
-    var previous = const LatLng(14.2929, 120.9622);
-    var current = const LatLng(14.2941, 120.9622);
+    final pcu = routeStops['pcu']!.position;
+    final college = routeStops['college']!.position;
+    LatLng along(double t) => LatLng(
+      pcu.latitude + (college.latitude - pcu.latitude) * t,
+      pcu.longitude + (college.longitude - pcu.longitude) * t,
+    );
+    var previous = along(5 / 11);
+    var current = along(6 / 11);
     var previousTimestamp = now.subtract(const Duration(seconds: 1));
     var currentTimestamp = now;
+
     switch (testCase) {
       case 'wrong direction':
-        previous = const LatLng(14.2941, 120.9622);
-        current = const LatLng(14.2929, 120.9622);
+        final temp = previous;
+        previous = current;
+        current = temp;
         break;
       case 'approach only':
-        current = const LatLng(14.29349, 120.9622);
+        previous = along(3 / 11);
+        current = along(4 / 11);
         break;
       case 'duplicate coordinates':
         current = previous;
         break;
       case 'noise':
-        previous = const LatLng(14.29349, 120.9622);
-        current = const LatLng(14.29351, 120.9622);
+        previous = along(0.49999);
+        current = along(0.50001);
         break;
       case 'stale GPS':
         previousTimestamp = now.subtract(const Duration(minutes: 3));
@@ -255,12 +264,11 @@ class GpsSimulator extends ChangeNotifier {
         eventId: eventId,
       );
     }
-    final resultState = checkpointManager.state;
     _lastCheckpointResult = accepted
         ? (repeatedIgnored
             ? 'Accepted first crossing; duplicate event ignored'
             : 'Accepted: College Building checkpoint crossed')
-        : (resultState?.lastEvent ?? 'Rejected: checkpoint conditions not met');
+        : (checkpointManager.state?.lastEvent ?? 'Rejected: checkpoint conditions not met');
     _log('Checkpoint test "$testCase": $_lastCheckpointResult. Synthetic coordinates.');
     notifyListeners();
   }
