@@ -48,7 +48,7 @@ flutter run \
 Use only a publishable/anon key in the app. Never place a service-role key or secret key in client code, build flags, or the repository.
 
 4. Open the GPS simulator and choose **Supabase Test Simulation**. Apply the configuration and start the simulator. Test GPS rows are written only to gps_locations_test with a fixed test shuttle ID and a trip ID. If the table or permissions are not configured, the event log reports the write error.
-5. To test a second debug client as an observer, use the same **Test trip ID**, matching route scenario and starting stop, select **Manual** movement, apply the setup and press **Start**. Do not advance checkpoints on the observer client. It subscribes to the same test trip's Realtime rows. Use only one writing simulator for a given trip.
+5. To test a second debug client as an observer, start that client **before** the writer begins. Use the same **Test trip ID**, route scenario and starting stop, select **Manual** movement, apply the setup and press **Start**. Then start the writing simulator on the first client. Do not advance checkpoints on the observer client. It subscribes to the same test trip's Realtime rows. Use only one writing simulator for a given trip.
 
 The simulator keeps route detection client-side and sends only simulated coordinate rows to the isolated table. Realtime records are validated and processed in timestamp order; the College Building transition still requires the directional checkpoint to pass. The app does not mix test locations into a production shuttle feed.
 
