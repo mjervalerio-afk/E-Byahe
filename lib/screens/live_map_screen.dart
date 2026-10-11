@@ -80,7 +80,9 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
 
   void _onSimulatorChanged() {
     final state = _simulator.state;
-    if (state?.source == GpsSource.supabaseTestSimulation && _supabase.isConfigured) {
+    if (state?.source == GpsSource.supabaseTestSimulation &&
+        state?.status != SimulationStatus.stopped &&
+        _supabase.isConfigured) {
       if (_realtimeTripId == _simulator.tripId) return;
       _realtimeSubscription?.cancel();
       final tripId = _simulator.tripId;
