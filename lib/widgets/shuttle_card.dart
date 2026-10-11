@@ -202,6 +202,15 @@ class ShuttleCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: AppColors.muted, fontSize: 12),
                     ),
+                    if (shuttle.remainingDistanceLabel != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        shuttle.remainingDistanceLabel!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                      ),
+                    ],
                   ],
                 ),
               ),
