@@ -235,8 +235,8 @@ class GpsSimulator extends ChangeNotifier {
       pcu.latitude + (college.latitude - pcu.latitude) * t,
       pcu.longitude + (college.longitude - pcu.longitude) * t,
     );
-    var previous = along(33 / 35);
-    var current = along(34 / 35);
+    var previous = along(52 / 55);
+    var current = along(53 / 55);
     var previousTimestamp = now.add(const Duration(milliseconds: 200));
     var currentTimestamp = now.add(const Duration(milliseconds: 300));
 
@@ -247,8 +247,8 @@ class GpsSimulator extends ChangeNotifier {
         current = temp;
         break;
       case 'approach only':
-        previous = along(30 / 35);
-        current = along(31 / 35);
+        previous = along(49 / 55);
+        current = along(50 / 55);
         break;
       case 'duplicate coordinates':
         current = previous;
@@ -274,10 +274,10 @@ class GpsSimulator extends ChangeNotifier {
     // the test itself doesn't simulate an implausible jump from the route origin.
     final seedTime = now.add(const Duration(milliseconds: 100));
     final seedPosition = testCase == 'wrong direction'
-        ? along(34 / 35)
+        ? along(53 / 55)
         : (testCase == 'approach only'
-            ? along(29 / 35)
-            : (testCase == 'noise' ? along(0.94995) : along(32 / 35)));
+            ? along(48 / 55)
+            : (testCase == 'noise' ? along(0.94995) : along(51 / 55)));
     checkpointManager.processGps(
       GpsSample(seedPosition, seedTime, GpsSource.localSimulation),
     );
@@ -328,9 +328,9 @@ class GpsSimulator extends ChangeNotifier {
     final from = _segmentStart!;
     final to = _segmentDestination!;
     _step++;
-    // Eleven intervals means the halfway College checkpoint is crossed
-    // between samples instead of landing exactly inside its tolerance band.
-    const totalSteps = 35;
+    // The 55 interpolation steps cross the near-destination College checkpoint
+    // between samples instead of landing inside its tolerance band.
+    const totalSteps = 55;
     final t = (_step / totalSteps).clamp(0.0, 1.0);
     final point = LatLng(
       from.latitude + (to.latitude - from.latitude) * t,
