@@ -285,6 +285,11 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
                           _actionButton('Approach only', Icons.near_me_outlined, () => sim.runCheckpointTest('approach only')),
                           _actionButton('Duplicate point', Icons.content_copy, () => sim.runCheckpointTest('duplicate coordinates')),
                           _actionButton('GPS noise', Icons.waves, () => sim.runCheckpointTest('noise')),
+                          _actionButton('Repeated crossing', Icons.repeat, () => sim.runCheckpointTest('repeated crossing')),
+                          _actionButton('College not next', Icons.route, () => sim.runCheckpointTest('college not next')),
+                          _actionButton('Stale GPS', Icons.history, () => sim.runCheckpointTest('stale GPS')),
+                          _actionButton('Invalid GPS', Icons.gps_off, () => sim.runCheckpointTest('invalid GPS')),
+                          _actionButton('Unrealistic jump', Icons.warning_amber, () => sim.runCheckpointTest('unrealistic jump')),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -306,7 +311,7 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
                             ? const Text('No events yet.', style: TextStyle(color: AppColors.muted, fontSize: 12))
                             : ListView.separated(
                                 shrinkWrap: true,
-                                itemCount: sim.events.length.clamp(0, 20),
+                                itemCount: sim.events.length > 20 ? 20 : sim.events.length,
                                 separatorBuilder: (_, __) => const Divider(height: 8),
                                 itemBuilder: (_, index) => Text(sim.events[index], style: const TextStyle(fontSize: 11, color: AppColors.navy)),
                               ),
