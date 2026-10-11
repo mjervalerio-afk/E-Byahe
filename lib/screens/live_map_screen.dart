@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../services/gps_simulator.dart';
+import '../services/route_state_manager.dart';
+import '../services/supabase_simulation_service.dart';
+import '../widgets/gps_simulator_panel.dart';
 import '../theme.dart';
 import '../widgets/landmarks.dart';
 import '../widgets/shuttle_card.dart';
@@ -31,18 +37,27 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
   static const double _sheetMaxExtent = 0.85;
 
   final MapController _mapController = MapController();
-  final DraggableScrollableController _sheetController =
-      DraggableScrollableController();
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
+  final SupabaseSimulationService _supabase = SupabaseSimulationService();
+  late final GpsSimulator _simulator = GpsSimulator(
+    onGpsSample: (sample, tripId) => _supabase.writeTestPosition(tripId: tripId, sample: sample),
+  );
+  StreamSubscription<List<Map<String, dynamic>>>? _realtimeSubscription;
+  String? _realtimeTripId;
 
   @override
   void initState() {
     super.initState();
     widget.focusPlace?.addListener(_onFocusPlace);
+    _simulator.addListener(_onSimulatorChanged);
   }
 
   @override
   void dispose() {
     widget.focusPlace?.removeListener(_onFocusPlace);
+    _simulator.removeListener(_onSimulatorChanged);
+    _realtimeSubscription?.cancel();
+    _simulator.dispose();
     _mapController.dispose();
     _sheetController.dispose();
     super.dispose();
@@ -55,7 +70,74 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
   }
 
   void _recenterMap() {
+    final state = _simulator.state;
+    if (state != null && state.status != SimulationStatus.stopped) {
+      _mapController.move(state.position, 16.5);
+      return;
+    }
     _mapController.move(liveMapInitialCenter, liveMapInitialZoom);
+  }
+
+  void _onSimulatorChanged() {
+    final state = _simulator.state;
+    if (state?.source == GpsSource.supabaseTestSimulation && _supabase.isConfigured) {
+      if (_realtimeTripId == _simulator.tripId) return;
+      _realtimeSubscription?.cancel();
+      final tripId = _simulator.tripId;
+      _realtimeTripId = tripId;
+      _realtimeSubscription = _supabase.watchTestTrip(tripId).listen((rows) {
+        if (!mounted || _simulator.tripId != tripId || rows.isEmpty) return;
+        DateTime timestamp(Map<String, dynamic> row) =>
+            DateTime.tryParse(row['recorded_at']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final ordered = List<Map<String, dynamic>>.from(rows)
+          ..sort((a, b) => timestamp(a).compareTo(timestamp(b)));
+        _simulator.processRealtimeRecord(ordered.last);
+      }, onError: (Object error) {
+        debugPrint('Supabase test GPS Realtime error: ' + error.toString());
+      });
+    } else {
+      _realtimeSubscription?.cancel();
+      _realtimeSubscription = null;
+      _realtimeTripId = null;
+    }
+  }
+
+  void _openGpsSimulator() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => GpsSimulatorPanel(simulator: _simulator, supabase: _supabase),
+    );
+  }
+
+  Shuttle _displayShuttle(Shuttle shuttle) {
+    final state = _simulator.state;
+    if (state == null || state.status == SimulationStatus.stopped) return shuttle;
+    final nextId = state.nextStopId;
+    final distance = nextId == null
+        ? 0.0
+        : RouteStateManager.distanceMeters(state.position, routeStops[nextId]!.position);
+    final eta = nextId == null ? 0 : (distance / 333.0).ceil().clamp(1, 99);
+    final upcomingIndex = state.stopIndex + 2;
+    final upcomingName = upcomingIndex < state.stops.length
+        ? routeStops[state.stops[upcomingIndex]]!.name
+        : 'Route complete';
+    return Shuttle(
+      id: shuttle.id,
+      name: shuttle.name,
+      seatsAvailable: shuttle.seatsAvailable,
+      seatsTotal: shuttle.seatsTotal,
+      etaMinutes: eta,
+      routeLabel: 'SIMULATED GPS · On route to ' + state.nextDestinationName,
+      avatarColor: shuttle.avatarColor,
+      position: state.position,
+      originStopName: state.currentStopName,
+      departedTime: shuttle.departedTime,
+      currentDestinationName: state.nextDestinationName,
+      upcomingStopName: upcomingName,
+    );
   }
 
   String _shortLabel(String name) {
@@ -95,6 +177,8 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
                 children: [
                   Positioned.fill(child: _buildMap()),
                   _buildAttribution(),
+                  if (kDebugMode) _buildSimulatorButton(),
+                  _buildSimulationIndicator(),
                   _buildRecenterButton(constraints.maxHeight),
                   _buildShuttleSheet(),
                 ],
@@ -156,7 +240,87 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
               ),
           ],
         ),
+        // The single shuttle vehicle marker is only shown while simulation
+        // coordinates are active. It reuses the existing map, not a duplicate map.
+        ListenableBuilder(
+          listenable: _simulator,
+          builder: (context, _) {
+            final state = _simulator.state;
+            if (state == null || state.status == SimulationStatus.stopped) {
+              return MarkerLayer(markers: const <Marker>[]);
+            }
+            return MarkerLayer(
+              markers: [
+                Marker(
+                  point: state.position,
+                  width: 54,
+                  height: 54,
+                  alignment: Alignment.center,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF167BCE), width: 3),
+                      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                    ),
+                    child: const Icon(Icons.airport_shuttle_rounded, color: Color(0xFF167BCE), size: 28),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ],
+    );
+  }
+
+  Widget _buildSimulatorButton() {
+    return Positioned(
+      top: 8,
+      right: 10,
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 5,
+        child: IconButton(
+          tooltip: 'Open developer GPS simulator',
+          onPressed: _openGpsSimulator,
+          icon: const Icon(Icons.gps_fixed, color: AppColors.navy),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimulationIndicator() {
+    return Positioned(
+      top: 48,
+      left: 10,
+      child: ListenableBuilder(
+        listenable: _simulator,
+        builder: (context, _) {
+          final state = _simulator.state;
+          if (state == null || state.status == SimulationStatus.stopped) {
+            return const SizedBox.shrink();
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1C2),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: const Color(0xFFE0A000), width: 1.3),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5)],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.gps_fixed, size: 13, color: Color(0xFF825900)),
+                SizedBox(width: 5),
+                Text('SIMULATED GPS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Color(0xFF825900))),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -270,9 +434,15 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
               ),
               const SizedBox(height: 12),
               for (final shuttle in widget.shuttles) ...[
-                ShuttleCard(
-                  shuttle: shuttle,
-                  onTap: () => widget.onOpenShuttle(shuttle),
+                ListenableBuilder(
+                  listenable: _simulator,
+                  builder: (context, _) {
+                    final displayed = _displayShuttle(shuttle);
+                    return ShuttleCard(
+                      shuttle: displayed,
+                      onTap: () => widget.onOpenShuttle(displayed),
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
               ],
