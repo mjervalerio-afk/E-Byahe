@@ -22,6 +22,7 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
   late bool _automatic;
   late int _speed;
   late GpsSource _source;
+  late final TextEditingController _tripIdController;
 
   @override
   void initState() {
@@ -34,6 +35,13 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
     _automatic = sim.automatic;
     _speed = sim.speedMultiplier;
     _source = sim.source;
+    _tripIdController = TextEditingController(text: sim.tripId);
+  }
+
+  @override
+  void dispose() {
+    _tripIdController.dispose();
+    super.dispose();
   }
 
   List<String> get _availableStops => routeScenarios[_scenario]!.stopIds
@@ -51,6 +59,7 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
       automatic: _automatic,
       speedMultiplier: _speed,
       source: _source,
+      tripId: _source == GpsSource.supabaseTestSimulation ? _tripIdController.text.trim() : null,
     );
   }
 
@@ -186,6 +195,20 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
                             : 'Local mode updates the map only and never writes GPS data.',
                         style: const TextStyle(fontSize: 11, color: AppColors.muted),
                       ),
+                      if (_source == GpsSource.supabaseTestSimulation) ...[
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _tripIdController,
+                          maxLength: 80,
+                          decoration: const InputDecoration(
+                            labelText: 'Test trip ID',
+                            helperText: 'Use the same ID on a read-only observer client.',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            counterText: '',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _sectionTitle('Route setup'),
                       DropdownButtonFormField<String>(
