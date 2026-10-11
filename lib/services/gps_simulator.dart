@@ -398,9 +398,18 @@ class GpsSimulator extends ChangeNotifier {
             timestamp,
             GpsSource.supabaseTestSimulation,
           ));
-    _log(accepted ? 'Supabase Realtime test GPS update accepted' : (state?.lastEvent ?? 'Supabase update rejected'));
-    if (accepted) notifyListeners();
-    return accepted;
+    final updatedState = state;
+    final locationUpdated = updatedState != null &&
+        currentState != null &&
+        timestamp.isAfter(currentState.timestamp) &&
+        updatedState.timestamp.isAtSameMomentAs(timestamp);
+    _log(accepted
+        ? 'Supabase Realtime checkpoint transition accepted'
+        : (locationUpdated
+            ? 'Supabase Realtime location update accepted; route checkpoint still pending'
+            : (state?.lastEvent ?? 'Supabase update rejected')));
+    if (accepted || locationUpdated) notifyListeners();
+    return accepted || locationUpdated;
   }
 
   void _log(String message) {
