@@ -28,9 +28,10 @@ const routeScenarios = <String, RouteScenario>{
 
 /// Software-only example checkpoint. It is deliberately not drawn on the map.
 /// Coordinates are not verified to match a road.
-const testCollegeCheckpointStart = LatLng(14.293500, 120.961400);
-const testCollegeCheckpointEnd = LatLng(14.293500, 120.963000);
-const testCollegeCheckpointPositiveDirection = true;
+const testCollegeCheckpointStart = LatLng(14.289719937, 120.960770709);
+const testCollegeCheckpointEnd = LatLng(14.290719937, 120.961270709);
+// Direction is from the PCU stop toward the College Building test stop.
+const testCollegeCheckpointPositiveDirection = false;
 
 enum GpsSource { localSimulation, supabaseTestSimulation, realGps }
 enum SimulationStatus { stopped, running, paused }
@@ -218,6 +219,7 @@ class RouteStateManager {
     Duration maxSampleAge = const Duration(seconds: 30),
     Duration maxFutureSkew = const Duration(seconds: 5),
     double toleranceMeters = 2.0,
+    GpsSource source = GpsSource.localSimulation,
   }) {
     final s = _requireState();
     if (_processedCrossings.contains(eventId)) {
@@ -251,6 +253,13 @@ class RouteStateManager {
       _state = _copy(s, event: 'Checkpoint rejected: implausible GPS jump');
       return false;
     }
+    // Every valid sample still updates the tracked shuttle position, even if
+    // it did not cross the invisible line; otherwise the next pair is invalid.
+    if (!processGps(GpsSample(current, currentTimestamp, source),
+        maxJumpMeters: maxJumpMeters, minMovementMeters: 0)) {
+      return false;
+    }
+    final beforeCrossing = _state!;
     final crossed = crossedDirectionalLine(
       previous: previous,
       current: current,
@@ -261,7 +270,7 @@ class RouteStateManager {
       toleranceMeters: toleranceMeters,
     );
     if (!crossed) {
-      _state = _copy(s, event: 'Checkpoint rejected: no valid directional line crossing');
+      _state = _copy(beforeCrossing, event: 'Checkpoint waiting: no valid directional line crossing');
       return false;
     }
     advanceCheckpoint();
