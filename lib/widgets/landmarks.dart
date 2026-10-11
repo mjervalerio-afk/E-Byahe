@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/route_state_manager.dart';
 
 /// The four fixed locations the Live Map is allowed to pin, per the current
 /// scope. Coordinates for the malls and the main PCU campus come from Google
@@ -24,21 +25,21 @@ class Landmark {
 
 final smCityDasmarinas = Landmark(
   name: 'SM City Dasmariñas',
-  position: const LatLng(14.299884615406288, 120.9573426776829),
+  position: routeStops['sm_dasma']!.position,
   color: const Color(0xFFE8C468),
   icon: Icons.local_mall,
 );
 
 final robinsonsPlaceDasmarinas = Landmark(
   name: 'Robinsons Place Dasmariñas',
-  position: const LatLng(14.299307290720453, 120.95482412290472),
+  position: routeStops['robinsons']!.position,
   color: const Color(0xFF7BC67E),
   icon: Icons.local_mall,
 );
 
 final pcuMainCampus = Landmark(
   name: 'Philippine Christian University',
-  position: const LatLng(14.291403874503066, 120.95875841774566),
+  position: routeStops['pcu']!.position,
   color: const Color(0xFF2E6FF2),
   icon: Icons.school,
 );
@@ -47,7 +48,7 @@ final pcuMainCampus = Landmark(
 // College Building once you have it (see class doc comment above).
 final pcuCollegeBuilding = Landmark(
   name: 'PCU College Building',
-  position: const LatLng(14.289036, 120.963283),
+  position: routeStops['college']!.position,
   color: const Color(0xFFE79E7D),
   icon: Icons.apartment,
 );
