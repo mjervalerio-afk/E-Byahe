@@ -64,7 +64,7 @@ void main() {
       );
     });
 
-    test('detects one finite directional crossing and ignores wrong direction or duplicate event IDs', () {
+    test('detects finite directional crossing and ignores wrong direction or duplicate event IDs', () {
       final manager = RouteStateManager();
       final pcu = routeStops['pcu']!.position;
       final college = routeStops['college']!.position;
@@ -72,8 +72,8 @@ void main() {
         pcu.latitude + (college.latitude - pcu.latitude) * t,
         pcu.longitude + (college.longitude - pcu.longitude) * t,
       );
-      final before = along(5 / 11);
-      final after = along(6 / 11);
+      final before = along(33 / 35);
+      final after = along(34 / 35);
       expect(
         manager.crossedDirectionalLine(
           previous: before,
@@ -109,24 +109,25 @@ void main() {
       );
     });
 
-    test('College Building transition requires it to be the next stop and processes a valid crossing once', () {
+    test('College Building transition requires it to be next and processes valid crossing once', () {
       final pcu = routeStops['pcu']!.position;
       final college = routeStops['college']!.position;
       LatLng along(double t) => LatLng(
         pcu.latitude + (college.latitude - pcu.latitude) * t,
         pcu.longitude + (college.longitude - pcu.longitude) * t,
       );
-      var manager = RouteStateManager();
       var now = DateTime.now().toUtc();
+      final before = along(33 / 35);
+      final after = along(34 / 35);
+
+      var manager = RouteStateManager();
       manager.initialize(scenarioId: 'A', startingStopId: 'pcu', now: now.subtract(const Duration(seconds: 2)));
-      final before = along(5 / 11);
-      final after = along(6 / 11);
       expect(
         manager.processCollegeCheckpoint(
           previous: before,
           current: after,
-          previousTimestamp: now.subtract(const Duration(seconds: 1)),
-          currentTimestamp: now,
+          previousTimestamp: now.add(const Duration(milliseconds: 200)),
+          currentTimestamp: now.add(const Duration(milliseconds: 300)),
           eventId: 'not-next',
           now: now,
         ),
@@ -142,11 +143,18 @@ void main() {
       now = DateTime.now().toUtc();
       expect(manager.canTriggerCollegeCheckpoint(), isTrue);
       expect(
+        manager.processGps(
+          GpsSample(along(32 / 35), now.add(const Duration(milliseconds: 100)), GpsSource.localSimulation),
+        ),
+        isTrue,
+      );
+      now = DateTime.now().toUtc();
+      expect(
         manager.processCollegeCheckpoint(
           previous: before,
           current: after,
-          previousTimestamp: now.subtract(const Duration(seconds: 1)),
-          currentTimestamp: now,
+          previousTimestamp: now.add(const Duration(milliseconds: 200)),
+          currentTimestamp: now.add(const Duration(milliseconds: 300)),
           eventId: 'college-crossing-1',
           now: now,
         ),
@@ -157,8 +165,8 @@ void main() {
         manager.processCollegeCheckpoint(
           previous: before,
           current: after,
-          previousTimestamp: now.subtract(const Duration(seconds: 1)),
-          currentTimestamp: now,
+          previousTimestamp: now.add(const Duration(milliseconds: 200)),
+          currentTimestamp: now.add(const Duration(milliseconds: 300)),
           eventId: 'college-crossing-1',
           now: now,
         ),
