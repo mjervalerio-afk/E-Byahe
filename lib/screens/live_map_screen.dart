@@ -92,7 +92,12 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
             DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
         final ordered = List<Map<String, dynamic>>.from(rows)
           ..sort((a, b) => timestamp(a).compareTo(timestamp(b)));
-        _simulator.processRealtimeRecord(ordered.last);
+        // Process every unseen GPS sample in chronological order so a series
+        // of short movements cannot be collapsed into one implausible jump.
+        for (final row in ordered) {
+          if (!mounted || _simulator.tripId != tripId) break;
+          _simulator.processRealtimeRecord(row);
+        }
       }, onError: (Object error) {
         debugPrint('Supabase test GPS Realtime error: ' + error.toString());
       });
@@ -130,7 +135,7 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
       seatsAvailable: shuttle.seatsAvailable,
       seatsTotal: shuttle.seatsTotal,
       etaMinutes: eta,
-      routeLabel: 'SIMULATED GPS · On route to ' + state.nextDestinationName,
+      routeLabel: 'SIMULATED GPS · Rough ETA · On route to ' + state.nextDestinationName,
       avatarColor: shuttle.avatarColor,
       position: state.position,
       originStopName: state.currentStopName,
