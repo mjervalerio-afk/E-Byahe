@@ -256,7 +256,7 @@ class RouteStateManager {
     // Every valid sample still updates the tracked shuttle position, even if
     // it did not cross the invisible line; otherwise the next pair is invalid.
     if (!processGps(GpsSample(current, currentTimestamp, source),
-        maxJumpMeters: maxJumpMeters, minMovementMeters: 0)) {
+        maxJumpMeters: maxJumpMeters)) {
       return false;
     }
     final beforeCrossing = _state!;
