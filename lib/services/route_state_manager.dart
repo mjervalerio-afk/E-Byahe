@@ -1,17 +1,19 @@
 import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 
-/// TEST placeholders only; replace with measured real shuttle coordinates.
+/// Uses the locations already configured in the app's map. The College Building
+/// point remains approximate; interpolated shuttle movement is synthetic, not a
+/// road-matched path or a verified live shuttle position.
 class RouteStop {
   final String id, name;
   final LatLng position;
   const RouteStop(this.id, this.name, this.position);
 }
 const routeStops = <String, RouteStop>{
-  'pcu': RouteStop('pcu', 'PCU', LatLng(14.292640, 120.962401)),
-  'sm_dasma': RouteStop('sm_dasma', 'SM Dasma', LatLng(14.299100, 120.958500)),
-  'robinsons': RouteStop('robinsons', 'Robinsons Place Dasmariñas', LatLng(14.300300, 120.957000)),
-  'college': RouteStop('college', 'PCU College Building', LatLng(14.294800, 120.966000)),
+  'pcu': RouteStop('pcu', 'PCU', LatLng(14.291403874503066, 120.95875841774566)),
+  'sm_dasma': RouteStop('sm_dasma', 'SM Dasma', LatLng(14.299884615406288, 120.9573426776829)),
+  'robinsons': RouteStop('robinsons', 'Robinsons Place Dasmariñas', LatLng(14.299307290720453, 120.95482412290472)),
+  'college': RouteStop('college', 'PCU College Building', LatLng(14.289036, 120.963283)),
 };
 class RouteScenario {
   final String id, name;
