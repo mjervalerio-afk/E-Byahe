@@ -33,6 +33,63 @@ const testCollegeCheckpointEnd = LatLng(14.28965449, 120.96330676);
 // Direction is from the PCU stop toward the College Building test stop.
 const testCollegeCheckpointPositiveDirection = false;
 
+/// Calibration for an invisible directional checkpoint. Everything that needs
+/// tuning against the real campus road lives here, so no value is hard-coded
+/// inside the detection logic.
+///
+/// [positiveDirection] is true when permitted travel moves toward increasing
+/// signed distance from the line (left of lineStart -> lineEnd) and false for
+/// decreasing. Swap it if the shuttle drives the other way across the line.
+class CheckpointConfig {
+  final LatLng lineStart, lineEnd;
+  final bool positiveDirection;
+  /// Dead band around the line. Readings closer than this are never counted
+  /// as being on either side, which absorbs GPS noise near the line.
+  final double toleranceMeters;
+  /// Valid readings that must follow a detected crossing, all on the far side
+  /// of the line, before the route advances. Zero advances immediately.
+  final int confirmationReadings;
+  final double maxJumpMeters;
+  final Duration maxSampleAge, maxFutureSkew;
+  const CheckpointConfig({
+    required this.lineStart,
+    required this.lineEnd,
+    required this.positiveDirection,
+    this.toleranceMeters = 2.0,
+    this.confirmationReadings = 2,
+    this.maxJumpMeters = 500,
+    this.maxSampleAge = const Duration(seconds: 30),
+    this.maxFutureSkew = const Duration(seconds: 5),
+  }) : assert(confirmationReadings >= 0);
+
+  CheckpointConfig copyWith({
+    LatLng? lineStart,
+    LatLng? lineEnd,
+    bool? positiveDirection,
+    double? toleranceMeters,
+    int? confirmationReadings,
+    double? maxJumpMeters,
+    Duration? maxSampleAge,
+    Duration? maxFutureSkew,
+  }) => CheckpointConfig(
+    lineStart: lineStart ?? this.lineStart,
+    lineEnd: lineEnd ?? this.lineEnd,
+    positiveDirection: positiveDirection ?? this.positiveDirection,
+    toleranceMeters: toleranceMeters ?? this.toleranceMeters,
+    confirmationReadings: confirmationReadings ?? this.confirmationReadings,
+    maxJumpMeters: maxJumpMeters ?? this.maxJumpMeters,
+    maxSampleAge: maxSampleAge ?? this.maxSampleAge,
+    maxFutureSkew: maxFutureSkew ?? this.maxFutureSkew,
+  );
+}
+
+/// Software-test calibration; replace with surveyed road coordinates.
+const defaultCollegeCheckpoint = CheckpointConfig(
+  lineStart: testCollegeCheckpointStart,
+  lineEnd: testCollegeCheckpointEnd,
+  positiveDirection: testCollegeCheckpointPositiveDirection,
+);
+
 enum GpsSource { localSimulation, supabaseTestSimulation, realGps }
 enum SimulationStatus { stopped, running, paused }
 
@@ -81,10 +138,28 @@ class RouteSnapshot {
 /// Central route/GPS manager shared by simulation and future real GPS input.
 /// Database writes are intentionally kept outside this class.
 class RouteStateManager {
+  RouteStateManager({CheckpointConfig collegeCheckpoint = defaultCollegeCheckpoint})
+      : _collegeCheckpoint = collegeCheckpoint;
+
   RouteSnapshot? _state;
   LatLng? _lastPosition;
   DateTime? _lastTimestamp;
   final Set<String> _processedCrossings = <String>{};
+  CheckpointConfig _collegeCheckpoint;
+  _PendingCrossing? _pending;
+  // Most recent reading clearly on the near side of the line; used as the
+  // start of the crossing segment when the previous sample fell in the dead band.
+  LatLng? _lastNearPoint;
+
+  CheckpointConfig get collegeCheckpoint => _collegeCheckpoint;
+  /// Recalibrate the checkpoint. Discards any crossing awaiting confirmation.
+  set collegeCheckpoint(CheckpointConfig config) {
+    _collegeCheckpoint = config;
+    _pending = null;
+    _lastNearPoint = null;
+  }
+  bool get hasPendingCheckpoint => _pending != null;
+  int get pendingConfirmations => _pending?.confirmations ?? 0;
   RouteSnapshot? get state => _state;
   LatLng? get lastAcceptedPosition => _lastPosition;
   DateTime? get lastAcceptedTimestamp => _lastTimestamp;
@@ -104,6 +179,8 @@ class RouteStateManager {
     _lastPosition = routeStops[startingStopId]!.position;
     _lastTimestamp = time;
     _processedCrossings.clear();
+    _pending = null;
+    _lastNearPoint = null;
     _state = RouteSnapshot(
       scenarioId: scenarioId, stops: List.unmodifiable(stops), stopIndex: start,
       position: _lastPosition!, timestamp: time, status: SimulationStatus.stopped,
@@ -169,6 +246,8 @@ class RouteStateManager {
 
   RouteSnapshot advanceCheckpoint() {
     final s = _requireState();
+    _pending = null;
+    _lastNearPoint = null;
     if (s.stopIndex + 1 >= s.stops.length) {
       _state = _copy(s, event: 'Route already complete');
       return _state!;
@@ -192,15 +271,16 @@ class RouteStateManager {
     return _state!;
   }
 
-  /// Finite-segment directional crossing in a local metre projection.
-  /// eventId must be stable for a trip/checkpoint to make retries idempotent.
-  bool crossedDirectionalLine({
+  /// Pure finite-segment directional crossing test in a local metre projection.
+  /// True only when the previous -> current segment actually intersects the
+  /// finite checkpoint segment, travelling in the permitted direction, with
+  /// both readings outside the tolerance dead band.
+  static bool crossesDirectionalSegment({
     required LatLng previous, required LatLng current,
     required LatLng lineStart, required LatLng lineEnd,
-    required bool positiveDirection, required String eventId,
+    required bool positiveDirection,
     double toleranceMeters = 2.0,
   }) {
-    if (_processedCrossings.contains(eventId)) return false;
     final points = _project(previous, current, lineStart, lineEnd);
     final p = points[0], q = points[1], a = points[2], b = points[3];
     final lx = b.x - a.x, ly = b.y - a.y;
@@ -219,14 +299,52 @@ class RouteStateManager {
     if (denominator.abs() < 1e-9) return false;
     final t = ((a.x - p.x) * ly - (a.y - p.y) * lx) / denominator;
     final u = ((a.x - p.x) * my - (a.y - p.y) * mx) / denominator;
-    if (t < 0 || t > 1 || u < 0 || u > 1) return false;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+  }
+
+  /// Signed perpendicular distance in metres from [point] to the infinite line
+  /// through [lineStart] and [lineEnd]. Same sign convention as
+  /// [crossesDirectionalSegment] and [CheckpointConfig.positiveDirection].
+  static double signedDistanceToLine(LatLng point, LatLng lineStart, LatLng lineEnd) {
+    final points = _project(point, point, lineStart, lineEnd);
+    final p = points[0], a = points[2], b = points[3];
+    final lx = b.x - a.x, ly = b.y - a.y;
+    final lineLength = math.sqrt(lx * lx + ly * ly);
+    if (lineLength < 0.01) return 0;
+    return (lx * (p.y - a.y) - ly * (p.x - a.x)) / lineLength;
+  }
+
+  /// Directional crossing that is also idempotent per [eventId]: once a
+  /// crossing has been reported for an eventId it is never reported again.
+  bool crossedDirectionalLine({
+    required LatLng previous, required LatLng current,
+    required LatLng lineStart, required LatLng lineEnd,
+    required bool positiveDirection, required String eventId,
+    double toleranceMeters = 2.0,
+  }) {
+    if (_processedCrossings.contains(eventId)) return false;
+    if (!crossesDirectionalSegment(
+      previous: previous, current: current,
+      lineStart: lineStart, lineEnd: lineEnd,
+      positiveDirection: positiveDirection,
+      toleranceMeters: toleranceMeters,
+    )) {
+      return false;
+    }
     _processedCrossings.add(eventId);
     return true;
   }
 
-  /// Evaluates and applies the College Building's invisible directional
-  /// checkpoint. Rejects events when the stop is not next, samples are stale,
-  /// coordinates are invalid, movement is implausible, or the event was replayed.
+  /// Evaluates the College Building's invisible directional checkpoint using
+  /// the configured [collegeCheckpoint]. The route advances only when
+  ///  1. College Building is the next destination,
+  ///  2. the sample is valid, fresh, plausible and not a jitter/duplicate,
+  ///  3. previous -> current crosses the finite line in the permitted direction,
+  ///  4. the configured number of confirmation readings then stay on the far
+  ///     side, and
+  ///  5. the eventId has not already advanced the route.
+  /// Distance to the College Building is never used to trigger the transition.
+  /// The optional limits override the configured values for a single call.
   bool processCollegeCheckpoint({
     required LatLng previous,
     required LatLng current,
@@ -235,17 +353,24 @@ class RouteStateManager {
     required String eventId,
     DateTime? now,
     GpsSource source = GpsSource.localSimulation,
-    double maxJumpMeters = 500,
-    Duration maxSampleAge = const Duration(seconds: 30),
-    Duration maxFutureSkew = const Duration(seconds: 5),
-    double toleranceMeters = 2.0,
+    double? maxJumpMeters,
+    Duration? maxSampleAge,
+    Duration? maxFutureSkew,
+    double? toleranceMeters,
   }) {
+    final config = _collegeCheckpoint;
+    final jumpLimit = maxJumpMeters ?? config.maxJumpMeters;
+    final ageLimit = maxSampleAge ?? config.maxSampleAge;
+    final skewLimit = maxFutureSkew ?? config.maxFutureSkew;
+    final tolerance = toleranceMeters ?? config.toleranceMeters;
     final s = _requireState();
     if (_processedCrossings.contains(eventId)) {
       _state = _copy(s, event: 'Duplicate crossing ignored: event already processed');
       return false;
     }
     if (!canTriggerCollegeCheckpoint()) {
+      _pending = null;
+      _lastNearPoint = null;
       _state = _copy(s, event: 'Checkpoint rejected: College Building is not the next destination');
       return false;
     }
@@ -255,8 +380,8 @@ class RouteStateManager {
       return false;
     }
     for (final timestamp in [previousTimestamp, currentTimestamp]) {
-      if (timestamp.isBefore(clock.subtract(maxSampleAge)) ||
-          timestamp.isAfter(clock.add(maxFutureSkew))) {
+      if (timestamp.isBefore(clock.subtract(ageLimit)) ||
+          timestamp.isAfter(clock.add(skewLimit))) {
         _state = _copy(s, event: 'Checkpoint rejected: GPS sample is stale or future-dated');
         return false;
       }
@@ -268,31 +393,86 @@ class RouteStateManager {
       _state = _copy(s, event: 'Checkpoint rejected: invalid GPS coordinates');
       return false;
     }
-    if (distanceMeters(previous, current) > maxJumpMeters) {
+    if (distanceMeters(previous, current) > jumpLimit) {
       _state = _copy(s, event: 'Checkpoint rejected: implausible GPS jump');
       return false;
     }
     // Every valid sample still updates the tracked shuttle position, even if
     // it did not cross the invisible line; otherwise the next pair is invalid.
+    // Duplicate, stale and jitter-sized samples are rejected here, so they can
+    // never count as a confirmation reading either.
     if (!processGps(GpsSample(current, currentTimestamp, source),
-        maxJumpMeters: maxJumpMeters)) {
+        maxJumpMeters: jumpLimit, maxSampleAge: ageLimit, maxFutureSkew: skewLimit)) {
       return false;
     }
-    final beforeCrossing = _state!;
-    final crossed = crossedDirectionalLine(
-      previous: previous,
+
+    // Positive "side" means the far side of the line, i.e. after a permitted crossing.
+    final farSign = config.positiveDirection ? 1.0 : -1.0;
+    final side = signedDistanceToLine(current, config.lineStart, config.lineEnd) * farSign;
+
+    final pending = _pending;
+    if (pending != null) {
+      return _confirmPending(pending, side, tolerance, config);
+    }
+
+    // If the previous sample sits inside the dead band, measure the crossing
+    // from the last reading that was clearly on the near side instead, so a
+    // noisy reading near the line cannot hide a real crossing.
+    var from = previous;
+    final previousSide =
+        signedDistanceToLine(previous, config.lineStart, config.lineEnd).abs();
+    if (previousSide < tolerance && _lastNearPoint != null) from = _lastNearPoint!;
+    final crossed = crossesDirectionalSegment(
+      previous: from,
       current: current,
-      lineStart: testCollegeCheckpointStart,
-      lineEnd: testCollegeCheckpointEnd,
-      positiveDirection: testCollegeCheckpointPositiveDirection,
-      eventId: eventId,
-      toleranceMeters: toleranceMeters,
+      lineStart: config.lineStart,
+      lineEnd: config.lineEnd,
+      positiveDirection: config.positiveDirection,
+      toleranceMeters: tolerance,
     );
+    if (side <= -tolerance) _lastNearPoint = current;
     if (!crossed) {
-      _state = _copy(beforeCrossing, event: 'Checkpoint waiting: no valid directional line crossing');
+      _state = _copy(_state!, event: 'Checkpoint waiting: no valid directional line crossing');
       return false;
     }
-    advanceCheckpoint();
+    if (config.confirmationReadings <= 0) return _commitCheckpoint(eventId);
+    _pending = _PendingCrossing(eventId);
+    _state = _copy(_state!,
+        event: 'Checkpoint waiting: crossing detected, awaiting 0/${config.confirmationReadings} confirmation readings');
+    return false;
+  }
+
+  bool _confirmPending(
+    _PendingCrossing pending,
+    double side,
+    double tolerance,
+    CheckpointConfig config,
+  ) {
+    if (side <= -tolerance) {
+      _pending = null;
+      _lastNearPoint = _lastPosition;
+      _state = _copy(_state!,
+          event: 'Checkpoint waiting: crossing cancelled, shuttle returned to the near side');
+      return false;
+    }
+    if (side < tolerance) {
+      _state = _copy(_state!,
+          event: 'Checkpoint waiting: confirmation reading is inside the tolerance band');
+      return false;
+    }
+    pending.confirmations++;
+    if (pending.confirmations >= config.confirmationReadings) {
+      return _commitCheckpoint(pending.eventId);
+    }
+    _state = _copy(_state!,
+        event: 'Checkpoint waiting: confirmation ${pending.confirmations}/${config.confirmationReadings}');
+    return false;
+  }
+
+  /// The only place a checkpoint crossing advances the route.
+  bool _commitCheckpoint(String eventId) {
+    _processedCrossings.add(eventId);
+    advanceCheckpoint(); // also clears pending and near-side memory
     _state = _copy(_state!, event: 'College Building checkpoint accepted');
     return true;
   }
@@ -303,6 +483,8 @@ class RouteStateManager {
   void reset() {
     _state = null; _lastPosition = null; _lastTimestamp = null;
     _processedCrossings.clear();
+    _pending = null;
+    _lastNearPoint = null;
   }
   RouteSnapshot _requireState() => _state ?? (throw StateError('Initialize a route before processing GPS'));
   RouteSnapshot _copy(RouteSnapshot s, {SimulationStatus? status, String? event}) => RouteSnapshot(
@@ -328,6 +510,11 @@ class RouteStateManager {
       math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
     return 2 * r * math.asin(math.min(1, math.sqrt(h)));
   }
+}
+class _PendingCrossing {
+  final String eventId;
+  int confirmations = 0;
+  _PendingCrossing(this.eventId);
 }
 class _XY {
   final double x, y;

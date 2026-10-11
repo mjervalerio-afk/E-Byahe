@@ -219,7 +219,11 @@ class GpsSimulator extends ChangeNotifier {
   /// Exercises the configured invisible line detector with a set of
   /// deterministic cases. The coordinates are synthetic, not road-aligned.
   void runCheckpointTest(String testCase) {
-    final checkpointManager = RouteStateManager();
+    // These synthetic cases send a single sample pair, so they use immediate
+    // acceptance (no confirmation readings) to exercise the line detector itself.
+    final checkpointManager = RouteStateManager(
+      collegeCheckpoint: defaultCollegeCheckpoint.copyWith(confirmationReadings: 0),
+    );
     checkpointManager.initialize(scenarioId: 'A', startingStopId: 'pcu');
     if (testCase != 'college not next') {
       // Route A revisits PCU immediately before the College Building stop.
