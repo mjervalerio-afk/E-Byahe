@@ -28,8 +28,8 @@ const routeScenarios = <String, RouteScenario>{
 
 /// Software-only example checkpoint. It is deliberately not drawn on the map.
 /// Coordinates are not verified to match a road.
-const testCollegeCheckpointStart = LatLng(14.289719937, 120.960770709);
-const testCollegeCheckpointEnd = LatLng(14.290719937, 120.961270709);
+const testCollegeCheckpointStart = LatLng(14.28865449, 120.96280676);
+const testCollegeCheckpointEnd = LatLng(14.28965449, 120.96330676);
 // Direction is from the PCU stop toward the College Building test stop.
 const testCollegeCheckpointPositiveDirection = false;
 
