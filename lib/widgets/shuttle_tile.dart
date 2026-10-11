@@ -12,7 +12,8 @@ class Shuttle {
   final int etaMinutes;
   final String routeLabel;
   final Color avatarColor;
-  final LatLng position; // real GPS coordinate, once hardware feeds this live
+  final LatLng position; // simulated or real GPS coordinate
+  final String? remainingDistanceLabel;
 
   // Route progress timeline, shown on the Shuttle Detail screen.
   final String originStopName;
@@ -29,6 +30,7 @@ class Shuttle {
     required this.routeLabel,
     required this.avatarColor,
     required this.position,
+    this.remainingDistanceLabel,
     required this.originStopName,
     required this.departedTime,
     required this.currentDestinationName,
