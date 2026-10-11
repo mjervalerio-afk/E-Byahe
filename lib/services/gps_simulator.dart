@@ -388,6 +388,8 @@ class GpsSimulator extends ChangeNotifier {
     }
     final incomingPosition = LatLng(latitude.toDouble(), longitude.toDouble());
     final currentState = state;
+    // Ignore our own stream echo and any old record already reflected in UI.
+    if (currentState != null && !timestamp.isAfter(currentState.timestamp)) return false;
     final accepted = currentState != null && currentState.nextStopId == 'college'
         ? manager.processCollegeCheckpoint(
             previous: currentState.position,
