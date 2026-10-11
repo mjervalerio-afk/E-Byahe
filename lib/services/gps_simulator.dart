@@ -13,8 +13,9 @@ class GpsSimulator extends ChangeNotifier {
 
   final RouteStateManager manager;
   Timer? _timer;
-  int _segment = 0;
   int _step = 0;
+  LatLng? _segmentStart;
+  LatLng? _segmentDestination;
   int _speedMultiplier = 1;
   bool _automatic = true;
   bool _includeCollege = true;
@@ -53,8 +54,9 @@ class GpsSimulator extends ChangeNotifier {
       includeCollege: _includeCollege,
       source: GpsSource.localSimulation,
     );
-    _segment = 0;
     _step = 0;
+    _segmentStart = state!.position;
+    _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
     _log('Route initialized: ${routeScenarios[_scenarioId]!.name}; TEST coordinates only');
     notifyListeners();
   }
@@ -66,6 +68,11 @@ class GpsSimulator extends ChangeNotifier {
       _log('Manual simulation started');
       notifyListeners();
       return;
+    }
+    if (state!.status != SimulationStatus.paused) {
+      _segmentStart = state!.position;
+      _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
+      _step = 0;
     }
     manager.setStatus(SimulationStatus.running);
     _log('Automatic simulation started');
@@ -145,8 +152,9 @@ class GpsSimulator extends ChangeNotifier {
     manager.processGps(GpsSample(midpoint, now, GpsSource.localSimulation));
     manager.processGps(GpsSample(destination, now.add(const Duration(seconds: 1)), GpsSource.localSimulation));
     manager.advanceCheckpoint();
-    _segment++;
     _step = 0;
+    _segmentStart = state!.position;
+    _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
     _log('Manual checkpoint accepted: ${routeStops[nextId]!.name} (TEST position)');
     notifyListeners();
   }
@@ -162,14 +170,17 @@ class GpsSimulator extends ChangeNotifier {
     final id = current.stops[index];
     manager.initialize(
       scenarioId: current.scenarioId,
-      startingStopId: id,
+      startingStopId: current.stops.first,
       includeCollege: _includeCollege,
       source: GpsSource.localSimulation,
     );
     // Advance state to the exact previous index while retaining route order.
-    for (var i = 0; i < index; i++) {
+    for (var i = 0; i < index - 1; i++) {
       manager.advanceCheckpoint();
     }
+    _step = 0;
+    _segmentStart = state!.position;
+    _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
     _log('Moved to previous checkpoint: ${routeStops[id]!.name}');
     notifyListeners();
   }
@@ -225,8 +236,10 @@ class GpsSimulator extends ChangeNotifier {
       _log('Route completed');
       return;
     }
-    final from = snapshot.position;
-    final to = routeStops[destinationId]!.position;
+    _segmentStart ??= snapshot.position;
+    _segmentDestination ??= routeStops[destinationId]!.position;
+    final from = _segmentStart!;
+    final to = _segmentDestination!;
     _step++;
     const totalSteps = 12;
     final t = (_step / totalSteps).clamp(0.0, 1.0);
@@ -243,8 +256,9 @@ class GpsSimulator extends ChangeNotifier {
     }
     if (_step >= totalSteps) {
       manager.advanceCheckpoint();
-      _segment++;
       _step = 0;
+      _segmentStart = state!.position;
+      _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
       _log('Checkpoint reached: ${routeStops[destinationId]!.name} (TEST coordinate)');
     } else {
       _log('Simulated GPS update accepted');
