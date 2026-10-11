@@ -267,7 +267,10 @@ class _GpsSimulatorPanelState extends State<GpsSimulatorPanel> {
                         max: 10,
                         divisions: 9,
                         label: _speed.toString() + '×',
-                        onChanged: (v) => setState(() => _speed = v.round()),
+                        onChanged: (v) => setState(() {
+                          _speed = v.round();
+                          sim.setSpeed(_speed);
+                        }),
                       ),
                       Wrap(
                         spacing: 8,
