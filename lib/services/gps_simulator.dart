@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -182,10 +180,10 @@ class GpsSimulator extends ChangeNotifier {
       scenarioId: current.scenarioId,
       startingStopId: current.stops.first,
       includeCollege: _includeCollege,
-      source: GpsSource.localSimulation,
+      source: _source,
     );
     // Advance state to the exact previous index while retaining route order.
-    for (var i = 0; i < index - 1; i++) {
+    for (var i = 0; i < index; i++) {
       manager.advanceCheckpoint();
     }
     _step = 0;
