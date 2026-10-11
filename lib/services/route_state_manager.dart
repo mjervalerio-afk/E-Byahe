@@ -220,7 +220,6 @@ class RouteStateManager {
     Duration maxSampleAge = const Duration(seconds: 30),
     Duration maxFutureSkew = const Duration(seconds: 5),
     double toleranceMeters = 2.0,
-    GpsSource source = GpsSource.localSimulation,
   }) {
     final s = _requireState();
     if (_processedCrossings.contains(eventId)) {
