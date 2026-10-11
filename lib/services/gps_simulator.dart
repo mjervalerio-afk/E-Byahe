@@ -9,9 +9,13 @@ import 'route_state_manager.dart';
 /// Browser/device-local simulator. Coordinates here are for software testing
 /// only and must not be represented as a verified production vehicle position.
 class GpsSimulator extends ChangeNotifier {
-  GpsSimulator({RouteStateManager? manager}) : manager = manager ?? RouteStateManager();
+  GpsSimulator({RouteStateManager? manager, Future<void> Function(GpsSample sample, String tripId)? onGpsSample})
+      : manager = manager ?? RouteStateManager(), onGpsSample = onGpsSample;
 
   final RouteStateManager manager;
+  final Future<void> Function(GpsSample sample, String tripId)? onGpsSample;
+  GpsSource _source = GpsSource.localSimulation;
+  String _tripId = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
   Timer? _timer;
   int _step = 0;
   LatLng? _segmentStart;
@@ -25,6 +29,8 @@ class GpsSimulator extends ChangeNotifier {
   final List<String> _events = <String>[];
 
   RouteSnapshot? get state => manager.state;
+  GpsSource get source => _source;
+  String get tripId => _tripId;
   bool get automatic => _automatic;
   bool get includeCollege => _includeCollege;
   int get speedMultiplier => _speedMultiplier;
@@ -41,9 +47,12 @@ class GpsSimulator extends ChangeNotifier {
     bool includeCollege = true,
     bool automatic = true,
     int speedMultiplier = 1,
+    GpsSource source = GpsSource.localSimulation,
   }) {
     pause();
     _scenarioId = scenarioId;
+    _source = source;
+    _tripId = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
     _startingStopId = startingStopId ?? _defaultStart(scenarioId);
     _includeCollege = includeCollege;
     _automatic = automatic;
@@ -52,7 +61,7 @@ class GpsSimulator extends ChangeNotifier {
       scenarioId: _scenarioId,
       startingStopId: _startingStopId,
       includeCollege: _includeCollege,
-      source: GpsSource.localSimulation,
+      source: _source,
     );
     _step = 0;
     _segmentStart = state!.position;
@@ -110,6 +119,7 @@ class GpsSimulator extends ChangeNotifier {
       includeCollege: _includeCollege,
       automatic: _automatic,
       speedMultiplier: _speedMultiplier,
+      source: _source,
     );
     _log('Simulation reset');
   }
@@ -149,8 +159,8 @@ class GpsSimulator extends ChangeNotifier {
       (before.longitude + destination.longitude) / 2,
     );
     final now = DateTime.now().toUtc();
-    manager.processGps(GpsSample(midpoint, now, GpsSource.localSimulation));
-    manager.processGps(GpsSample(destination, now.add(const Duration(seconds: 1)), GpsSource.localSimulation));
+    _acceptSample(GpsSample(midpoint, now, _source));
+    _acceptSample(GpsSample(destination, now.add(const Duration(seconds: 1)), _source));
     manager.advanceCheckpoint();
     _step = 0;
     _segmentStart = state!.position;
@@ -247,9 +257,7 @@ class GpsSimulator extends ChangeNotifier {
       from.latitude + (to.latitude - from.latitude) * t,
       from.longitude + (to.longitude - from.longitude) * t,
     );
-    final accepted = manager.processGps(
-      GpsSample(point, DateTime.now().toUtc(), GpsSource.localSimulation),
-    );
+    final accepted = _acceptSample(GpsSample(point, DateTime.now().toUtc(), _source));
     if (!accepted) {
       _log(state?.lastEvent ?? 'GPS point rejected');
       return;
@@ -264,6 +272,44 @@ class GpsSimulator extends ChangeNotifier {
       _log('Simulated GPS update accepted');
     }
     notifyListeners();
+  }
+
+  bool _acceptSample(GpsSample sample) {
+    final accepted = manager.processGps(sample);
+    if (accepted) _publish(sample);
+    return accepted;
+  }
+
+  void _publish(GpsSample sample) {
+    if (sample.source != GpsSource.supabaseTestSimulation || onGpsSample == null) return;
+    onGpsSample!(sample, _tripId).catchError((Object error) {
+      _log('Supabase test write failed: ' + error.toString());
+      notifyListeners();
+    });
+  }
+
+  /// Applies a Realtime test row only while database simulation is selected
+  /// and only for the active trip. Production GPS is never accepted.
+  bool processRealtimeRecord(Map<String, dynamic> record) {
+    if (_source != GpsSource.supabaseTestSimulation ||
+        record['trip_id']?.toString() != _tripId ||
+        record['source_type']?.toString() != 'simulated') return false;
+    final latitude = record['latitude'];
+    final longitude = record['longitude'];
+    final timestamp = DateTime.tryParse(record['recorded_at']?.toString() ?? '');
+    if (latitude is! num || longitude is! num || timestamp == null) {
+      _log('Supabase update rejected: invalid test location row');
+      notifyListeners();
+      return false;
+    }
+    final accepted = manager.processGps(GpsSample(
+      LatLng(latitude.toDouble(), longitude.toDouble()),
+      timestamp,
+      GpsSource.supabaseTestSimulation,
+    ));
+    _log(accepted ? 'Supabase Realtime test GPS update accepted' : (state?.lastEvent ?? 'Supabase update rejected'));
+    if (accepted) notifyListeners();
+    return accepted;
   }
 
   void _log(String message) {
