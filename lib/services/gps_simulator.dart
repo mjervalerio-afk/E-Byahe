@@ -292,25 +292,64 @@ class GpsSimulator extends ChangeNotifier {
     final from = _segmentStart!;
     final to = _segmentDestination!;
     _step++;
-    const totalSteps = 12;
+    // Eleven intervals means the halfway College checkpoint is crossed
+    // between samples instead of landing exactly inside its tolerance band.
+    const totalSteps = 11;
     final t = (_step / totalSteps).clamp(0.0, 1.0);
     final point = LatLng(
       from.latitude + (to.latitude - from.latitude) * t,
       from.longitude + (to.longitude - from.longitude) * t,
     );
-    final accepted = _acceptSample(GpsSample(point, DateTime.now().toUtc(), _source));
+    final sampleTime = DateTime.now().toUtc();
+    var accepted = false;
+    var collegeCheckpointAccepted = false;
+
+    if (destinationId == 'college') {
+      collegeCheckpointAccepted = manager.processCollegeCheckpoint(
+        previous: snapshot.position,
+        current: point,
+        previousTimestamp: snapshot.timestamp,
+        currentTimestamp: sampleTime,
+        eventId: '$_tripId-college-checkpoint',
+        source: _source,
+      );
+      accepted = collegeCheckpointAccepted ||
+          (state?.lastEvent?.startsWith('Checkpoint waiting:') ?? false);
+      // The generated point is part of the isolated simulated feed even while
+      // the route is waiting for its directional checkpoint to be crossed.
+      _publish(GpsSample(point, sampleTime, _source));
+    } else {
+      accepted = _acceptSample(GpsSample(point, sampleTime, _source));
+    }
+
     if (!accepted) {
       _log(state?.lastEvent ?? 'GPS point rejected');
+      notifyListeners();
       return;
     }
-    if (_step >= totalSteps) {
-      manager.advanceCheckpoint();
+
+    if (collegeCheckpointAccepted) {
       _step = 0;
       _segmentStart = state!.position;
       _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
-      _log('Checkpoint reached: ${routeStops[destinationId]!.name} (TEST coordinate)');
+      _log('College Building directional checkpoint accepted');
+    } else if (_step >= totalSteps) {
+      if (destinationId == 'college') {
+        manager.setStatus(SimulationStatus.paused);
+        _timer?.cancel();
+        _timer = null;
+        _log('Simulation paused: College Building checkpoint was not accepted; route did not advance');
+      } else {
+        manager.advanceCheckpoint();
+        _step = 0;
+        _segmentStart = state!.position;
+        _segmentDestination = state!.nextStopId == null ? null : routeStops[state!.nextStopId]!.position;
+        _log('Checkpoint reached: ${routeStops[destinationId]!.name} (test path)');
+      }
     } else {
-      _log('Simulated GPS update accepted');
+      _log(destinationId == 'college'
+          ? (state?.lastEvent ?? 'Waiting for College Building checkpoint')
+          : 'Simulated GPS update accepted');
     }
     notifyListeners();
   }
