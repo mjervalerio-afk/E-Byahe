@@ -382,11 +382,22 @@ class GpsSimulator extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final accepted = manager.processGps(GpsSample(
-      LatLng(latitude.toDouble(), longitude.toDouble()),
-      timestamp,
-      GpsSource.supabaseTestSimulation,
-    ));
+    final incomingPosition = LatLng(latitude.toDouble(), longitude.toDouble());
+    final currentState = state;
+    final accepted = currentState != null && currentState.nextStopId == 'college'
+        ? manager.processCollegeCheckpoint(
+            previous: currentState.position,
+            current: incomingPosition,
+            previousTimestamp: currentState.timestamp,
+            currentTimestamp: timestamp,
+            eventId: '$_tripId-college-checkpoint',
+            source: GpsSource.supabaseTestSimulation,
+          )
+        : manager.processGps(GpsSample(
+            incomingPosition,
+            timestamp,
+            GpsSource.supabaseTestSimulation,
+          ));
     _log(accepted ? 'Supabase Realtime test GPS update accepted' : (state?.lastEvent ?? 'Supabase update rejected'));
     if (accepted) notifyListeners();
     return accepted;
