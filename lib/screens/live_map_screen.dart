@@ -140,6 +140,9 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
       routeLabel: 'SIMULATED GPS · Rough ETA · On route to ' + state.nextDestinationName,
       avatarColor: shuttle.avatarColor,
       position: state.position,
+      remainingDistanceLabel: nextId == null
+          ? 'Route complete'
+          : (distance / 1000).toStringAsFixed(2) + ' km straight-line remaining',
       originStopName: state.currentStopName,
       departedTime: shuttle.departedTime,
       currentDestinationName: state.nextDestinationName,
