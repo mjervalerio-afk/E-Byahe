@@ -54,7 +54,7 @@ class GpsSimulator extends ChangeNotifier {
     _startingStopId = startingStopId ?? _defaultStart(scenarioId);
     _includeCollege = includeCollege;
     _automatic = automatic;
-    _speedMultiplier = speedMultiplier.clamp(1, 10);
+    _speedMultiplier = speedMultiplier.clamp(1, 10).toInt();
     manager.initialize(
       scenarioId: _scenarioId,
       startingStopId: _startingStopId,
@@ -133,7 +133,7 @@ class GpsSimulator extends ChangeNotifier {
   }
 
   void setSpeed(int speed) {
-    _speedMultiplier = speed.clamp(1, 10);
+    _speedMultiplier = speed.clamp(1, 10).toInt();
     if (state?.status == SimulationStatus.running && _automatic) start();
     notifyListeners();
   }
@@ -158,7 +158,7 @@ class GpsSimulator extends ChangeNotifier {
     );
     final now = DateTime.now().toUtc();
     _acceptSample(GpsSample(midpoint, now, _source));
-    _acceptSample(GpsSample(destination, now.add(const Duration(seconds: 1)), _source));
+    _acceptSample(GpsSample(destination, now.add(const Duration(milliseconds: 5)), _source));
     manager.advanceCheckpoint();
     _step = 0;
     _segmentStart = state!.position;
@@ -217,15 +217,29 @@ class GpsSimulator extends ChangeNotifier {
         current = const LatLng(0.000001, 0.500001);
         break;
     }
+    final eventId = '$testCase-${DateTime.now().microsecondsSinceEpoch}';
     final accepted = manager.crossedDirectionalLine(
       previous: previous,
       current: current,
       lineStart: lineStart,
       lineEnd: lineEnd,
       positiveDirection: true,
-      eventId: '${testCase}-${DateTime.now().microsecondsSinceEpoch}',
+      eventId: eventId,
     );
-    _lastCheckpointResult = accepted ? 'Accepted: directional line crossed' : 'Rejected: no valid new crossing';
+    var repeatedIgnored = false;
+    if (testCase == 'repeated crossing' && accepted) {
+      repeatedIgnored = !manager.crossedDirectionalLine(
+        previous: previous,
+        current: current,
+        lineStart: lineStart,
+        lineEnd: lineEnd,
+        positiveDirection: true,
+        eventId: eventId,
+      );
+    }
+    _lastCheckpointResult = accepted
+        ? (repeatedIgnored ? 'Accepted first crossing; duplicate event ignored' : 'Accepted: directional line crossed')
+        : 'Rejected: no valid new crossing';
     _log('Checkpoint test "$testCase": $_lastCheckpointResult. Synthetic coordinates.');
     notifyListeners();
   }
