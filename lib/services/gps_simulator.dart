@@ -46,11 +46,14 @@ class GpsSimulator extends ChangeNotifier {
     bool automatic = true,
     int speedMultiplier = 1,
     GpsSource source = GpsSource.localSimulation,
+    String? tripId,
   }) {
     pause();
     _scenarioId = scenarioId;
     _source = source;
-    _tripId = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
+    _tripId = tripId != null && tripId.trim().isNotEmpty
+        ? tripId.trim()
+        : DateTime.now().toUtc().millisecondsSinceEpoch.toString();
     _startingStopId = startingStopId ?? _defaultStart(scenarioId);
     _includeCollege = includeCollege;
     _automatic = automatic;
@@ -118,6 +121,7 @@ class GpsSimulator extends ChangeNotifier {
       automatic: _automatic,
       speedMultiplier: _speedMultiplier,
       source: _source,
+      tripId: _tripId,
     );
     _log('Simulation reset');
   }
