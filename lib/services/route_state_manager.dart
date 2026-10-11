@@ -215,6 +215,7 @@ class RouteStateManager {
     required DateTime currentTimestamp,
     required String eventId,
     DateTime? now,
+    GpsSource source = GpsSource.localSimulation,
     double maxJumpMeters = 500,
     Duration maxSampleAge = const Duration(seconds: 30),
     Duration maxFutureSkew = const Duration(seconds: 5),
