@@ -16,6 +16,7 @@ class GpsSimulator extends ChangeNotifier {
   String _tripId = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
   Timer? _timer;
   int _step = 0;
+  double _simulatedSpeedKmh = 0;
   LatLng? _segmentStart;
   LatLng? _segmentDestination;
   int _speedMultiplier = 1;
@@ -32,6 +33,21 @@ class GpsSimulator extends ChangeNotifier {
   bool get automatic => _automatic;
   bool get includeCollege => _includeCollege;
   int get speedMultiplier => _speedMultiplier;
+  double get simulatedSpeedKmh => _simulatedSpeedKmh;
+  double get routeProgress {
+    final snapshot = state;
+    if (snapshot == null) return 0;
+    final nextId = snapshot.nextStopId;
+    if (nextId == null) return 1;
+    final start = routeStops[snapshot.currentStopId]!.position;
+    final end = routeStops[nextId]!.position;
+    final total = RouteStateManager.distanceMeters(start, end);
+    if (total <= 0) return snapshot.progress;
+    final travelled = RouteStateManager.distanceMeters(start, snapshot.position);
+    final segmentFraction = (travelled / total).clamp(0.0, 1.0).toDouble();
+    return ((snapshot.stopIndex + segmentFraction) / (snapshot.stops.length - 1))
+        .clamp(0.0, 1.0).toDouble();
+  }
   String get scenarioId => _scenarioId;
   String get startingStopId => _startingStopId;
   String? get lastCheckpointResult => _lastCheckpointResult;
@@ -96,6 +112,7 @@ class GpsSimulator extends ChangeNotifier {
     _timer = null;
     if (state != null && state!.status == SimulationStatus.running) {
       manager.setStatus(SimulationStatus.paused);
+      _simulatedSpeedKmh = 0;
       _log('Simulation paused');
       notifyListeners();
     }
@@ -107,6 +124,7 @@ class GpsSimulator extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
     if (state != null) manager.setStatus(SimulationStatus.stopped);
+    _simulatedSpeedKmh = 0;
     _log('Simulation stopped');
     notifyListeners();
   }
@@ -160,6 +178,7 @@ class GpsSimulator extends ChangeNotifier {
       (before.latitude + destination.latitude) / 2,
       (before.longitude + destination.longitude) / 2,
     );
+    _simulatedSpeedKmh = 0;
     final now = DateTime.now().toUtc();
     _acceptSample(GpsSample(midpoint, now, _source));
     _acceptSample(GpsSample(destination, now.add(const Duration(milliseconds: 5)), _source));
@@ -216,10 +235,10 @@ class GpsSimulator extends ChangeNotifier {
       pcu.latitude + (college.latitude - pcu.latitude) * t,
       pcu.longitude + (college.longitude - pcu.longitude) * t,
     );
-    var previous = along(5 / 11);
-    var current = along(6 / 11);
-    var previousTimestamp = now.subtract(const Duration(seconds: 1));
-    var currentTimestamp = now;
+    var previous = along(33 / 35);
+    var current = along(34 / 35);
+    var previousTimestamp = now.add(const Duration(milliseconds: 200));
+    var currentTimestamp = now.add(const Duration(milliseconds: 300));
 
     switch (testCase) {
       case 'wrong direction':
@@ -228,15 +247,15 @@ class GpsSimulator extends ChangeNotifier {
         current = temp;
         break;
       case 'approach only':
-        previous = along(3 / 11);
-        current = along(4 / 11);
+        previous = along(30 / 35);
+        current = along(31 / 35);
         break;
       case 'duplicate coordinates':
         current = previous;
         break;
       case 'noise':
-        previous = along(0.49999);
-        current = along(0.50001);
+        previous = along(0.94999);
+        current = along(0.95001);
         break;
       case 'stale GPS':
         previousTimestamp = now.subtract(const Duration(minutes: 3));
@@ -251,12 +270,24 @@ class GpsSimulator extends ChangeNotifier {
     }
 
     final eventId = '$testCase-${DateTime.now().microsecondsSinceEpoch}';
+    // Seed the service with the last valid sample before the test pair so that
+    // the test itself doesn't simulate an implausible jump from the route origin.
+    final seedTime = now.add(const Duration(milliseconds: 100));
+    final seedPosition = testCase == 'wrong direction'
+        ? along(34 / 35)
+        : (testCase == 'approach only'
+            ? along(29 / 35)
+            : (testCase == 'noise' ? along(0.94995) : along(32 / 35)));
+    checkpointManager.processGps(
+      GpsSample(seedPosition, seedTime, GpsSource.localSimulation),
+    );
     final accepted = checkpointManager.processCollegeCheckpoint(
       previous: previous,
       current: current,
       previousTimestamp: previousTimestamp,
       currentTimestamp: currentTimestamp,
       eventId: eventId,
+      now: now,
     );
     var repeatedIgnored = false;
     if (testCase == 'repeated crossing' && accepted) {
@@ -266,6 +297,7 @@ class GpsSimulator extends ChangeNotifier {
         previousTimestamp: previousTimestamp,
         currentTimestamp: currentTimestamp,
         eventId: eventId,
+        now: now,
       );
     }
     _lastCheckpointResult = accepted
@@ -298,13 +330,17 @@ class GpsSimulator extends ChangeNotifier {
     _step++;
     // Eleven intervals means the halfway College checkpoint is crossed
     // between samples instead of landing exactly inside its tolerance band.
-    const totalSteps = 11;
+    const totalSteps = 35;
     final t = (_step / totalSteps).clamp(0.0, 1.0);
     final point = LatLng(
       from.latitude + (to.latitude - from.latitude) * t,
       from.longitude + (to.longitude - from.longitude) * t,
     );
     final sampleTime = DateTime.now().toUtc();
+    final realElapsedSeconds = sampleTime.difference(snapshot.timestamp).inMilliseconds / 1000.0;
+    final simulatedElapsedSeconds = realElapsedSeconds * _speedMultiplier;
+    final movedMeters = RouteStateManager.distanceMeters(snapshot.position, point);
+    _simulatedSpeedKmh = simulatedElapsedSeconds > 0 ? movedMeters / simulatedElapsedSeconds * 3.6 : 0;
     var accepted = false;
     var collegeCheckpointAccepted = false;
 
