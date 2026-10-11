@@ -204,6 +204,71 @@ class RouteStateManager {
     return true;
   }
 
+  /// Evaluates and applies the College Building's invisible directional
+  /// checkpoint. Rejects events when the stop is not next, samples are stale,
+  /// coordinates are invalid, movement is implausible, or the event was replayed.
+  bool processCollegeCheckpoint({
+    required LatLng previous,
+    required LatLng current,
+    required DateTime previousTimestamp,
+    required DateTime currentTimestamp,
+    required String eventId,
+    DateTime? now,
+    double maxJumpMeters = 500,
+    Duration maxSampleAge = const Duration(seconds: 30),
+    Duration maxFutureSkew = const Duration(seconds: 5),
+    double toleranceMeters = 2.0,
+  }) {
+    final s = _requireState();
+    if (_processedCrossings.contains(eventId)) {
+      _state = _copy(s, event: 'Duplicate crossing ignored: event already processed');
+      return false;
+    }
+    if (!canTriggerCollegeCheckpoint()) {
+      _state = _copy(s, event: 'Checkpoint rejected: College Building is not the next destination');
+      return false;
+    }
+    final clock = (now ?? DateTime.now()).toUtc();
+    if (!currentTimestamp.isAfter(previousTimestamp)) {
+      _state = _copy(s, event: 'Checkpoint rejected: GPS timestamps are not increasing');
+      return false;
+    }
+    for (final timestamp in [previousTimestamp, currentTimestamp]) {
+      if (timestamp.isBefore(clock.subtract(maxSampleAge)) ||
+          timestamp.isAfter(clock.add(maxFutureSkew))) {
+        _state = _copy(s, event: 'Checkpoint rejected: GPS sample is stale or future-dated');
+        return false;
+      }
+    }
+    bool valid(LatLng p) => p.latitude.isFinite && p.longitude.isFinite &&
+        p.latitude >= -90 && p.latitude <= 90 &&
+        p.longitude >= -180 && p.longitude <= 180;
+    if (!valid(previous) || !valid(current)) {
+      _state = _copy(s, event: 'Checkpoint rejected: invalid GPS coordinates');
+      return false;
+    }
+    if (distanceMeters(previous, current) > maxJumpMeters) {
+      _state = _copy(s, event: 'Checkpoint rejected: implausible GPS jump');
+      return false;
+    }
+    final crossed = crossedDirectionalLine(
+      previous: previous,
+      current: current,
+      lineStart: testCollegeCheckpointStart,
+      lineEnd: testCollegeCheckpointEnd,
+      positiveDirection: testCollegeCheckpointPositiveDirection,
+      eventId: eventId,
+      toleranceMeters: toleranceMeters,
+    );
+    if (!crossed) {
+      _state = _copy(s, event: 'Checkpoint rejected: no valid directional line crossing');
+      return false;
+    }
+    advanceCheckpoint();
+    _state = _copy(_state!, event: 'College Building checkpoint accepted');
+    return true;
+  }
+
   /// The College Building event may trigger only when it is actually next.
   bool canTriggerCollegeCheckpoint() => _state?.nextStopId == 'college';
 
