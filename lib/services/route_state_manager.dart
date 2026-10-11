@@ -35,6 +35,12 @@ const testCollegeCheckpointPositiveDirection = false;
 
 enum GpsSource { localSimulation, supabaseTestSimulation, realGps }
 enum SimulationStatus { stopped, running, paused }
+
+/// Progress of the route itself, independent of the simulator's run state.
+/// notStarted: still at the configured starting stop and not running.
+/// inProgress: moving, paused, or stopped after leaving the starting stop.
+/// completed: the final stop of the selected sequence has been reached.
+enum RouteStatus { notStarted, inProgress, completed }
 class GpsSample {
   final LatLng position;
   final DateTime timestamp;
@@ -50,16 +56,26 @@ class RouteSnapshot {
   final SimulationStatus status;
   final GpsSource source;
   final String? lastEvent;
+  /// Index in [stops] where this trip began (0 unless a mid-route start was chosen).
+  final int startIndex;
   const RouteSnapshot({
     required this.scenarioId, required this.stops, required this.stopIndex,
     required this.position, required this.timestamp, required this.status,
-    required this.source, this.lastEvent,
+    required this.source, this.lastEvent, this.startIndex = 0,
   });
   String get currentStopId => stops[stopIndex.clamp(0, stops.length - 1).toInt()];
   String? get nextStopId => stopIndex + 1 < stops.length ? stops[stopIndex + 1] : null;
   String get currentStopName => routeStops[currentStopId]!.name;
   String get nextDestinationName => nextStopId == null ? 'Route complete' : routeStops[nextStopId]!.name;
   double get progress => stops.length < 2 ? 1 : stopIndex / (stops.length - 1);
+  bool get isComplete => nextStopId == null;
+  RouteStatus get routeStatus {
+    if (isComplete) return RouteStatus.completed;
+    if (stopIndex == startIndex && status == SimulationStatus.stopped) {
+      return RouteStatus.notStarted;
+    }
+    return RouteStatus.inProgress;
+  }
 }
 
 /// Central route/GPS manager shared by simulation and future real GPS input.
@@ -92,6 +108,7 @@ class RouteStateManager {
       scenarioId: scenarioId, stops: List.unmodifiable(stops), stopIndex: start,
       position: _lastPosition!, timestamp: time, status: SimulationStatus.stopped,
       source: source, lastEvent: 'Route initialized; TEST coordinates only',
+      startIndex: start,
     );
     return _state!;
   }
@@ -145,6 +162,7 @@ class RouteStateManager {
       scenarioId: s.scenarioId, stops: s.stops, stopIndex: s.stopIndex,
       position: p, timestamp: sample.timestamp, status: s.status,
       source: sample.source, lastEvent: 'GPS position accepted (' + sample.source.name + ')',
+      startIndex: s.startIndex,
     );
     return true;
   }
@@ -169,6 +187,7 @@ class RouteStateManager {
       scenarioId: s.scenarioId, stops: s.stops, stopIndex: index,
       position: pos, timestamp: time, status: s.status, source: s.source,
       lastEvent: 'Checkpoint accepted: ' + routeStops[id]!.name + ' (TEST coordinate)',
+      startIndex: s.startIndex,
     );
     return _state!;
   }
@@ -289,7 +308,7 @@ class RouteStateManager {
   RouteSnapshot _copy(RouteSnapshot s, {SimulationStatus? status, String? event}) => RouteSnapshot(
     scenarioId: s.scenarioId, stops: s.stops, stopIndex: s.stopIndex,
     position: s.position, timestamp: s.timestamp, status: status ?? s.status,
-    source: s.source, lastEvent: event,
+    source: s.source, lastEvent: event, startIndex: s.startIndex,
   );
 
   static List<_XY> _project(LatLng previous, LatLng current, LatLng a, LatLng b) {

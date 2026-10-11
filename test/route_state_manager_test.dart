@@ -175,4 +175,172 @@ void main() {
       expect(manager.state!.lastEvent, contains('Duplicate crossing ignored'));
     });
   });
+
+  group('Route sequences, starting stops and optional College Building', () {
+    /// Walks a route to the end, returning every stop id visited in order.
+    List<String> walk(RouteStateManager manager) {
+      final visited = <String>[manager.state!.currentStopId];
+      while (!manager.state!.isComplete) {
+        visited.add(manager.advanceCheckpoint().currentStopId);
+      }
+      return visited;
+    }
+
+    test('each route visits its configured stops in order, College included', () {
+      final expected = {
+        'A': ['pcu', 'sm_dasma', 'robinsons', 'pcu', 'college'],
+        'B': ['robinsons', 'pcu', 'college', 'sm_dasma', 'robinsons'],
+        'C': ['sm_dasma', 'robinsons', 'pcu', 'college'],
+      };
+      final starts = {'A': 'pcu', 'B': 'robinsons', 'C': 'sm_dasma'};
+      for (final id in expected.keys) {
+        final manager = RouteStateManager();
+        manager.initialize(scenarioId: id, startingStopId: starts[id]!);
+        expect(walk(manager), expected[id], reason: 'Route $id');
+      }
+    });
+
+    test('skipping College keeps the remaining order of every route intact', () {
+      final expected = {
+        'A': ['pcu', 'sm_dasma', 'robinsons', 'pcu'],
+        'B': ['robinsons', 'pcu', 'sm_dasma', 'robinsons'],
+        'C': ['sm_dasma', 'robinsons', 'pcu'],
+      };
+      final starts = {'A': 'pcu', 'B': 'robinsons', 'C': 'sm_dasma'};
+      for (final id in expected.keys) {
+        final manager = RouteStateManager();
+        manager.initialize(
+          scenarioId: id,
+          startingStopId: starts[id]!,
+          includeCollege: false,
+        );
+        expect(walk(manager), expected[id], reason: 'Route $id without College');
+      }
+    });
+
+    test('skipping College does not modify the shared route definitions', () {
+      RouteStateManager().initialize(
+        scenarioId: 'A',
+        startingStopId: 'pcu',
+        includeCollege: false,
+      );
+      expect(routeScenarios['A']!.stopIds, ['pcu', 'sm_dasma', 'robinsons', 'pcu', 'college']);
+    });
+
+    test('each route starts at its configured first stop', () {
+      final starts = {'A': 'pcu', 'B': 'robinsons', 'C': 'sm_dasma'};
+      for (final entry in starts.entries) {
+        final state = RouteStateManager().initialize(
+          scenarioId: entry.key,
+          startingStopId: entry.value,
+        );
+        expect(state.stopIndex, 0, reason: 'Route ${entry.key}');
+        expect(state.currentStopId, entry.value);
+        expect(state.position, routeStops[entry.value]!.position);
+      }
+    });
+
+    test('can start part-way through a route and continue from there', () {
+      final manager = RouteStateManager();
+      final state = manager.initialize(scenarioId: 'A', startingStopId: 'sm_dasma');
+      expect(state.stopIndex, 1);
+      expect(state.nextDestinationName, 'Robinsons Place Dasmariñas');
+      expect(state.routeStatus, RouteStatus.notStarted);
+      expect(walk(manager), ['sm_dasma', 'robinsons', 'pcu', 'college']);
+    });
+
+    test('rejects unknown routes, unknown stops, and College when it is excluded', () {
+      final manager = RouteStateManager();
+      expect(
+        () => manager.initialize(scenarioId: 'Z', startingStopId: 'pcu'),
+        throwsArgumentError,
+      );
+      expect(
+        () => manager.initialize(scenarioId: 'A', startingStopId: 'nowhere'),
+        throwsArgumentError,
+      );
+      expect(
+        () => manager.initialize(
+          scenarioId: 'A',
+          startingStopId: 'college',
+          includeCollege: false,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('College is the next destination exactly where the route says so', () {
+      // Route B: College follows PCU.
+      var manager = RouteStateManager();
+      manager.initialize(scenarioId: 'B', startingStopId: 'robinsons');
+      expect(manager.canTriggerCollegeCheckpoint(), isFalse);
+      manager.advanceCheckpoint(); // at PCU
+      expect(manager.state!.nextStopId, 'college');
+      expect(manager.canTriggerCollegeCheckpoint(), isTrue);
+      manager.advanceCheckpoint(); // at College
+      expect(manager.state!.currentStopId, 'college');
+      expect(manager.state!.nextDestinationName, 'SM Dasma');
+
+      // Route C without College: it is never offered as a destination.
+      manager = RouteStateManager();
+      manager.initialize(
+        scenarioId: 'C',
+        startingStopId: 'sm_dasma',
+        includeCollege: false,
+      );
+      manager.advanceCheckpoint();
+      manager.advanceCheckpoint(); // at PCU, last stop
+      expect(manager.canTriggerCollegeCheckpoint(), isFalse);
+    });
+
+    test('tracks current stop, next destination and progress along Route A', () {
+      final manager = RouteStateManager();
+      var state = manager.initialize(scenarioId: 'A', startingStopId: 'pcu');
+      expect(state.progress, closeTo(0.0, 1e-9));
+      expect(state.currentStopName, 'PCU');
+      expect(state.nextDestinationName, 'SM Dasma');
+
+      state = manager.advanceCheckpoint();
+      expect(state.progress, closeTo(0.25, 1e-9));
+      expect(state.currentStopName, 'SM Dasma');
+      expect(state.nextDestinationName, 'Robinsons Place Dasmariñas');
+
+      manager.advanceCheckpoint();
+      state = manager.advanceCheckpoint();
+      expect(state.progress, closeTo(0.75, 1e-9));
+      expect(state.nextDestinationName, 'PCU College Building');
+
+      state = manager.advanceCheckpoint();
+      expect(state.progress, closeTo(1.0, 1e-9));
+      expect(state.nextStopId, isNull);
+      expect(state.nextDestinationName, 'Route complete');
+    });
+
+    test('route status moves notStarted -> inProgress -> completed', () {
+      final manager = RouteStateManager();
+      var state = manager.initialize(scenarioId: 'C', startingStopId: 'sm_dasma');
+      expect(state.routeStatus, RouteStatus.notStarted);
+
+      state = manager.setStatus(SimulationStatus.running);
+      expect(state.routeStatus, RouteStatus.inProgress);
+
+      manager.advanceCheckpoint();
+      manager.advanceCheckpoint();
+      state = manager.advanceCheckpoint();
+      expect(state.currentStopId, 'college');
+      expect(state.isComplete, isTrue);
+      expect(state.routeStatus, RouteStatus.completed);
+    });
+
+    test('advancing past the final stop leaves the completed route unchanged', () {
+      final manager = RouteStateManager();
+      manager.initialize(scenarioId: 'C', startingStopId: 'sm_dasma');
+      walk(manager);
+      final lastIndex = manager.state!.stopIndex;
+      final state = manager.advanceCheckpoint();
+      expect(state.stopIndex, lastIndex);
+      expect(state.lastEvent, 'Route already complete');
+      expect(state.routeStatus, RouteStatus.completed);
+    });
+  });
 }
