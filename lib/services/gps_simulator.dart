@@ -196,50 +196,71 @@ class GpsSimulator extends ChangeNotifier {
   /// Exercises the configured invisible line detector with a set of
   /// deterministic cases. The coordinates are synthetic, not road-aligned.
   void runCheckpointTest(String testCase) {
-    const lineStart = LatLng(0, 0);
-    const lineEnd = LatLng(0, 1);
-    LatLng previous = const LatLng(-1, 0.5);
-    LatLng current = const LatLng(1, 0.5);
+    final checkpointManager = RouteStateManager();
+    checkpointManager.initialize(scenarioId: 'A', startingStopId: 'pcu');
+    if (testCase != 'college not next') {
+      // Route A visits PCU again immediately before the College Building stop.
+      for (var i = 0; i < 3; i++) {
+        checkpointManager.advanceCheckpoint();
+      }
+    }
+
+    final now = DateTime.now().toUtc();
+    var previous = const LatLng(14.2929, 120.9622);
+    var current = const LatLng(14.2941, 120.9622);
+    var previousTimestamp = now.subtract(const Duration(seconds: 1));
+    var currentTimestamp = now;
     switch (testCase) {
       case 'wrong direction':
-        previous = current;
-        current = const LatLng(-1, 0.5);
+        previous = const LatLng(14.2941, 120.9622);
+        current = const LatLng(14.2929, 120.9622);
         break;
       case 'approach only':
-        previous = const LatLng(-1, 0.5);
-        current = const LatLng(-0.1, 0.5);
+        current = const LatLng(14.29349, 120.9622);
         break;
       case 'duplicate coordinates':
-        previous = current = const LatLng(-1, 0.5);
+        current = previous;
         break;
       case 'noise':
-        previous = const LatLng(-0.000001, 0.5);
-        current = const LatLng(0.000001, 0.500001);
+        previous = const LatLng(14.29349, 120.9622);
+        current = const LatLng(14.29351, 120.9622);
+        break;
+      case 'stale GPS':
+        previousTimestamp = now.subtract(const Duration(minutes: 3));
+        currentTimestamp = now.subtract(const Duration(minutes: 2));
+        break;
+      case 'invalid GPS':
+        current = const LatLng(100, 120.9622);
+        break;
+      case 'unrealistic jump':
+        current = const LatLng(14.3020, 120.9622);
         break;
     }
+
     final eventId = '$testCase-${DateTime.now().microsecondsSinceEpoch}';
-    final accepted = manager.crossedDirectionalLine(
+    final accepted = checkpointManager.processCollegeCheckpoint(
       previous: previous,
       current: current,
-      lineStart: lineStart,
-      lineEnd: lineEnd,
-      positiveDirection: true,
+      previousTimestamp: previousTimestamp,
+      currentTimestamp: currentTimestamp,
       eventId: eventId,
     );
     var repeatedIgnored = false;
     if (testCase == 'repeated crossing' && accepted) {
-      repeatedIgnored = !manager.crossedDirectionalLine(
+      repeatedIgnored = !checkpointManager.processCollegeCheckpoint(
         previous: previous,
         current: current,
-        lineStart: lineStart,
-        lineEnd: lineEnd,
-        positiveDirection: true,
+        previousTimestamp: previousTimestamp,
+        currentTimestamp: currentTimestamp,
         eventId: eventId,
       );
     }
+    final resultState = checkpointManager.state;
     _lastCheckpointResult = accepted
-        ? (repeatedIgnored ? 'Accepted first crossing; duplicate event ignored' : 'Accepted: directional line crossed')
-        : 'Rejected: no valid new crossing';
+        ? (repeatedIgnored
+            ? 'Accepted first crossing; duplicate event ignored'
+            : 'Accepted: College Building checkpoint crossed')
+        : (resultState?.lastEvent ?? 'Rejected: checkpoint conditions not met');
     _log('Checkpoint test "$testCase": $_lastCheckpointResult. Synthetic coordinates.');
     notifyListeners();
   }
