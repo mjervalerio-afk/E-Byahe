@@ -41,7 +41,7 @@ class RouteSnapshot {
   final GpsSource source;
   final String? lastEvent;
   const RouteSnapshot({required this.scenarioId, required this.stops, required this.stopIndex, required this.position, required this.timestamp, required this.status, required this.source, this.lastEvent});
-  String get currentStopId => stops[stopIndex.clamp(0, stops.length - 1)];
+  String get currentStopId => stops[stopIndex.clamp(0, stops.length - 1).toInt()];
   String? get nextStopId => stopIndex + 1 < stops.length ? stops[stopIndex + 1] : null;
   String get currentStopName => routeStops[currentStopId]!.name;
   String get nextDestinationName => nextStopId == null ? 'Route complete' : routeStops[nextStopId]!.name;
