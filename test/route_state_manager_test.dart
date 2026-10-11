@@ -72,8 +72,8 @@ void main() {
         pcu.latitude + (college.latitude - pcu.latitude) * t,
         pcu.longitude + (college.longitude - pcu.longitude) * t,
       );
-      final before = along(33 / 35);
-      final after = along(34 / 35);
+      final before = along(52 / 55);
+      final after = along(53 / 55);
       expect(
         manager.crossedDirectionalLine(
           previous: before,
@@ -144,7 +144,7 @@ void main() {
       expect(manager.canTriggerCollegeCheckpoint(), isTrue);
       expect(
         manager.processGps(
-          GpsSample(along(32 / 35), now.add(const Duration(milliseconds: 100)), GpsSource.localSimulation),
+          GpsSample(along(51 / 55), now.add(const Duration(milliseconds: 100)), GpsSource.localSimulation),
         ),
         isTrue,
       );
