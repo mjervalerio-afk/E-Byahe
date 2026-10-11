@@ -101,12 +101,26 @@ class RouteStateManager {
     return _state!;
   }
 
-  bool processGps(GpsSample sample, {double maxJumpMeters = 1500, double minMovementMeters = 0.8}) {
+  bool processGps(GpsSample sample, {
+    double maxJumpMeters = 1500,
+    double minMovementMeters = 0.8,
+    Duration maxSampleAge = const Duration(seconds: 30),
+    Duration maxFutureSkew = const Duration(seconds: 5),
+  }) {
     final s = _requireState();
     final p = sample.position;
     if (!p.latitude.isFinite || !p.longitude.isFinite || p.latitude < -90 ||
         p.latitude > 90 || p.longitude < -180 || p.longitude > 180) {
       _state = _copy(s, event: 'GPS rejected: invalid coordinates');
+      return false;
+    }
+    final now = DateTime.now().toUtc();
+    if (sample.timestamp.isBefore(now.subtract(maxSampleAge))) {
+      _state = _copy(s, event: 'GPS rejected: stale sample timestamp');
+      return false;
+    }
+    if (sample.timestamp.isAfter(now.add(maxFutureSkew))) {
+      _state = _copy(s, event: 'GPS rejected: timestamp is too far in the future');
       return false;
     }
     if (_lastTimestamp != null && !sample.timestamp.isAfter(_lastTimestamp!)) {
@@ -142,7 +156,11 @@ class RouteStateManager {
     }
     final index = s.stopIndex + 1;
     final id = s.stops[index];
-    final time = DateTime.now().toUtc();
+    final now = DateTime.now().toUtc();
+    final last = _lastTimestamp;
+    final time = last != null && !now.isAfter(last)
+        ? last.add(const Duration(microseconds: 1))
+        : now;
     final pos = routeStops[id]!.position;
     _lastPosition = pos;
     _lastTimestamp = time;
