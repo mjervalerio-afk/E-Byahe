@@ -119,7 +119,7 @@ class _LiveMapScreenState extends State<LiveMapScreen> {
     final distance = nextId == null
         ? 0.0
         : RouteStateManager.distanceMeters(state.position, routeStops[nextId]!.position);
-    final eta = nextId == null ? 0 : (distance / 333.0).ceil().clamp(1, 99);
+    final eta = nextId == null ? 0 : (distance / 333.0).ceil().clamp(1, 99).toInt();
     final upcomingIndex = state.stopIndex + 2;
     final upcomingName = upcomingIndex < state.stops.length
         ? routeStops[state.stops[upcomingIndex]]!.name
