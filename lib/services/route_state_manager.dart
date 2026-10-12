@@ -1,94 +1,10 @@
 import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 
-/// Uses the locations already configured in the app's map. The College Building
-/// point remains approximate; interpolated shuttle movement is synthetic, not a
-/// road-matched path or a verified live shuttle position.
-class RouteStop {
-  final String id, name;
-  final LatLng position;
-  const RouteStop(this.id, this.name, this.position);
-}
-const routeStops = <String, RouteStop>{
-  'pcu': RouteStop('pcu', 'PCU', LatLng(14.291403874503066, 120.95875841774566)),
-  'sm_dasma': RouteStop('sm_dasma', 'SM Dasma', LatLng(14.299884615406288, 120.9573426776829)),
-  'robinsons': RouteStop('robinsons', 'Robinsons Place Dasmariñas', LatLng(14.299307290720453, 120.95482412290472)),
-  'college': RouteStop('college', 'PCU College Building', LatLng(14.289036, 120.963283)),
-};
-class RouteScenario {
-  final String id, name;
-  final List<String> stopIds;
-  const RouteScenario(this.id, this.name, this.stopIds);
-}
-const routeScenarios = <String, RouteScenario>{
-  'A': RouteScenario('A', 'Start at PCU', ['pcu', 'sm_dasma', 'robinsons', 'pcu', 'college']),
-  'B': RouteScenario('B', 'Start at Robinsons', ['robinsons', 'pcu', 'college', 'sm_dasma', 'robinsons']),
-  'C': RouteScenario('C', 'Start at SM Dasma', ['sm_dasma', 'robinsons', 'pcu', 'college']),
-};
-
-/// Software-only example checkpoint. It is deliberately not drawn on the map.
-/// Coordinates are not verified to match a road.
-const testCollegeCheckpointStart = LatLng(14.28865449, 120.96280676);
-const testCollegeCheckpointEnd = LatLng(14.28965449, 120.96330676);
-// Direction is from the PCU stop toward the College Building test stop.
-const testCollegeCheckpointPositiveDirection = false;
-
-/// Calibration for an invisible directional checkpoint. Everything that needs
-/// tuning against the real campus road lives here, so no value is hard-coded
-/// inside the detection logic.
-///
-/// [positiveDirection] is true when permitted travel moves toward increasing
-/// signed distance from the line (left of lineStart -> lineEnd) and false for
-/// decreasing. Swap it if the shuttle drives the other way across the line.
-class CheckpointConfig {
-  final LatLng lineStart, lineEnd;
-  final bool positiveDirection;
-  /// Dead band around the line. Readings closer than this are never counted
-  /// as being on either side, which absorbs GPS noise near the line.
-  final double toleranceMeters;
-  /// Valid readings that must follow a detected crossing, all on the far side
-  /// of the line, before the route advances. Zero advances immediately.
-  final int confirmationReadings;
-  final double maxJumpMeters;
-  final Duration maxSampleAge, maxFutureSkew;
-  const CheckpointConfig({
-    required this.lineStart,
-    required this.lineEnd,
-    required this.positiveDirection,
-    this.toleranceMeters = 2.0,
-    this.confirmationReadings = 2,
-    this.maxJumpMeters = 500,
-    this.maxSampleAge = const Duration(seconds: 30),
-    this.maxFutureSkew = const Duration(seconds: 5),
-  }) : assert(confirmationReadings >= 0);
-
-  CheckpointConfig copyWith({
-    LatLng? lineStart,
-    LatLng? lineEnd,
-    bool? positiveDirection,
-    double? toleranceMeters,
-    int? confirmationReadings,
-    double? maxJumpMeters,
-    Duration? maxSampleAge,
-    Duration? maxFutureSkew,
-  }) => CheckpointConfig(
-    lineStart: lineStart ?? this.lineStart,
-    lineEnd: lineEnd ?? this.lineEnd,
-    positiveDirection: positiveDirection ?? this.positiveDirection,
-    toleranceMeters: toleranceMeters ?? this.toleranceMeters,
-    confirmationReadings: confirmationReadings ?? this.confirmationReadings,
-    maxJumpMeters: maxJumpMeters ?? this.maxJumpMeters,
-    maxSampleAge: maxSampleAge ?? this.maxSampleAge,
-    maxFutureSkew: maxFutureSkew ?? this.maxFutureSkew,
-  );
-}
-
-/// Software-test calibration; replace with surveyed road coordinates.
-const defaultCollegeCheckpoint = CheckpointConfig(
-  lineStart: testCollegeCheckpointStart,
-  lineEnd: testCollegeCheckpointEnd,
-  positiveDirection: testCollegeCheckpointPositiveDirection,
-);
+import '../config/route_config.dart';
+// Stops, routes and checkpoint settings live in lib/config/route_config.dart.
+// Re-exported so code that already imports this file keeps working.
+export '../config/route_config.dart';
 
 enum GpsSource { localSimulation, supabaseTestSimulation, realGps }
 enum SimulationStatus { stopped, running, paused }
@@ -123,6 +39,29 @@ class RouteSnapshot {
   String get currentStopId => stops[stopIndex.clamp(0, stops.length - 1).toInt()];
   String? get nextStopId => stopIndex + 1 < stops.length ? stops[stopIndex + 1] : null;
   String get currentStopName => routeStops[currentStopId]!.name;
+  /// Display name of the active route, for example "Start at PCU".
+  String get routeName => routeScenarios[scenarioId]?.name ?? scenarioId;
+  /// The stop the shuttle last left on this trip, or null before it has left
+  /// its starting stop. A trip that starts part-way along a route never
+  /// reports a stop it did not actually visit.
+  String? get previousStopId => stopIndex > startIndex ? stops[stopIndex - 1] : null;
+  String? get previousStopName =>
+      previousStopId == null ? null : routeStops[previousStopId]!.name;
+  /// Compass bearing, 0 to 360 degrees clockwise from north, of the straight
+  /// leg from the current stop to the next destination. Null when complete.
+  double? get expectedBearingDegrees {
+    final next = nextStopId;
+    if (next == null) return null;
+    return RouteStateManager.bearingDegrees(
+      routeStops[currentStopId]!.position,
+      routeStops[next]!.position,
+    );
+  }
+  /// The same leg as an 8-point compass label (N, NE, E, SE, S, SW, W, NW).
+  String? get expectedDirection {
+    final bearing = expectedBearingDegrees;
+    return bearing == null ? null : RouteStateManager.compassLabel(bearing);
+  }
   String get nextDestinationName => nextStopId == null ? 'Route complete' : routeStops[nextStopId]!.name;
   double get progress => stops.length < 2 ? 1 : stopIndex / (stops.length - 1);
   bool get isComplete => nextStopId == null;
@@ -138,8 +77,8 @@ class RouteSnapshot {
 /// Central route/GPS manager shared by simulation and future real GPS input.
 /// Database writes are intentionally kept outside this class.
 class RouteStateManager {
-  RouteStateManager({CheckpointConfig collegeCheckpoint = defaultCollegeCheckpoint})
-      : _collegeCheckpoint = collegeCheckpoint;
+  RouteStateManager({CheckpointConfig? collegeCheckpoint})
+      : _collegeCheckpoint = collegeCheckpoint ?? defaultCollegeCheckpoint;
 
   RouteSnapshot? _state;
   LatLng? _lastPosition;
@@ -172,7 +111,7 @@ class RouteStateManager {
   }) {
     final scenario = routeScenarios[scenarioId];
     if (scenario == null) throw ArgumentError('Unknown route scenario: ' + scenarioId);
-    final stops = List<String>.from(scenario.stopIds)..removeWhere((id) => !includeCollege && id == 'college');
+    final stops = scenario.stopIdsFor(includeCollege: includeCollege);
     final start = stops.indexOf(startingStopId);
     if (start < 0) throw ArgumentError('Starting stop is not in the selected route');
     final time = (now ?? DateTime.now()).toUtc();
@@ -188,6 +127,28 @@ class RouteStateManager {
       startIndex: start,
     );
     return _state!;
+  }
+
+  /// Starts a trip from [startingStopId] and lets that stop pick the route:
+  /// PCU -> Route A, Robinsons -> Route B, SM Dasma -> Route C. Throws an
+  /// [ArgumentError] for a stop that no route starts from (the College Building).
+  RouteSnapshot initializeFromStart({
+    required String startingStopId,
+    bool includeCollege = true,
+    GpsSource source = GpsSource.localSimulation,
+    DateTime? now,
+  }) {
+    final route = activeRouteConfig.routeForStart(startingStopId);
+    if (route == null) {
+      throw ArgumentError('No route starts at stop: $startingStopId');
+    }
+    return initialize(
+      scenarioId: route.id,
+      startingStopId: startingStopId,
+      includeCollege: includeCollege,
+      source: source,
+      now: now,
+    );
   }
 
   RouteSnapshot setStatus(SimulationStatus status) {
@@ -267,6 +228,39 @@ class RouteStateManager {
       position: pos, timestamp: time, status: s.status, source: s.source,
       lastEvent: 'Checkpoint accepted: ' + routeStops[id]!.name + ' (TEST coordinate)',
       startIndex: s.startIndex,
+    );
+    return _state!;
+  }
+
+  /// Moves back one stop on the same route, keeping its sequence and the
+  /// trip's starting point. Position in the sequence is used, never a lookup by
+  /// stop id, so stepping back from the second PCU of Route A lands on
+  /// Robinsons, not on the first PCU. Stepping back deliberately re-arms the
+  /// checkpoint events so the same crossing can be processed again.
+  RouteSnapshot retreatCheckpoint() {
+    final s = _requireState();
+    if (s.stopIndex <= 0) {
+      _state = _copy(s, event: 'Already at the first stop');
+      return _state!;
+    }
+    _pending = null;
+    _lastNearPoint = null;
+    _processedCrossings.clear();
+    final index = s.stopIndex - 1;
+    final id = s.stops[index];
+    final now = DateTime.now().toUtc();
+    final last = _lastTimestamp;
+    final time = last != null && !now.isAfter(last)
+        ? last.add(const Duration(microseconds: 1))
+        : now;
+    final pos = routeStops[id]!.position;
+    _lastPosition = pos;
+    _lastTimestamp = time;
+    _state = RouteSnapshot(
+      scenarioId: s.scenarioId, stops: s.stops, stopIndex: index,
+      position: pos, timestamp: time, status: s.status, source: s.source,
+      lastEvent: 'Moved back to ${routeStops[id]!.name} (TEST coordinate)',
+      startIndex: math.min(s.startIndex, index),
     );
     return _state!;
   }
@@ -478,7 +472,7 @@ class RouteStateManager {
   }
 
   /// The College Building event may trigger only when it is actually next.
-  bool canTriggerCollegeCheckpoint() => _state?.nextStopId == 'college';
+  bool canTriggerCollegeCheckpoint() => _state?.nextStopId == collegeStopId;
 
   void reset() {
     _state = null; _lastPosition = null; _lastTimestamp = null;
@@ -499,6 +493,22 @@ class RouteStateManager {
     const yScale = 111320.0;
     _XY cv(LatLng v) => _XY(v.longitude * xScale, v.latitude * yScale);
     return [cv(previous), cv(current), cv(a), cv(b)];
+  }
+
+  /// Initial great-circle bearing from [from] to [to] in degrees (0 = north).
+  static double bearingDegrees(LatLng from, LatLng to) {
+    final lat1 = from.latitude * math.pi / 180, lat2 = to.latitude * math.pi / 180;
+    final dLon = (to.longitude - from.longitude) * math.pi / 180;
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+  }
+
+  /// 8-point compass label for a bearing in degrees.
+  static String compassLabel(double bearing) {
+    const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return labels[(((bearing % 360) + 22.5) % 360 ~/ 45)];
   }
 
   static double distanceMeters(LatLng a, LatLng b) {
